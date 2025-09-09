@@ -20,7 +20,7 @@ export default function App() {
 
   // Show CleverTap soft push prompt when user lands on Home
   useEffect(() => {
-    if (screen !== "home") return;
+    // if (screen !== "home") return;
 
     // minimal: just push to notifications
     window.clevertap = window.clevertap || {};
