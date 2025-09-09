@@ -19,74 +19,29 @@ export default function App() {
   }, [screen]);
 
   // Show CleverTap soft push prompt when user lands on Home
-// useEffect(() => {
-//   if (screen !== "home") return;
+  useEffect(() => {
+    if (screen !== "home") return;
 
-//   if (window.clevertap && typeof window.clevertap.push === "function") {
-//     window.clevertap.push([
-//       "notifications",
-//       {
-//         titleText: "Turn On Notifications?",
-//         bodyText: "We will only send you relevant and useful updates.",
-//         okButtonText: "Allow",
-//         rejectButtonText: "Later",
-//         okButtonColor: "#0b82ff",
-//         askAgainTimeInSeconds: 30, // re-ask after 30s if Later
-//         serviceWorkerPath: "/clevertap_sw.js"
-
-
-//       },
-//     ]);
-//   }
-// }, [screen]);
-
-// Show CleverTap soft push prompt when user lands on Home
-useEffect(() => {
-  if (screen !== "home") return;
-
-  // Avoid asking if user already denied notifications
-  if (typeof Notification !== "undefined" && Notification.permission === "denied") {
-    console.log("Notifications permission denied by user.");
-    return;
-  }
-
-  // Ensure buffer exists and push object into it (works before SDK loads)
-  window.clevertap = window.clevertap || {};
-  window.clevertap.notifications = window.clevertap.notifications || [];
-  const notifObj = {
-    titleText: "Turn On Notifications?",
-    bodyText: "We will only send you relevant and useful updates.",
-    okButtonText: "Allow",
-    rejectButtonText: "Later",
-    okButtonColor: "#0b82ff",
-    askAgainTimeInSeconds: 30,
-    serviceWorkerPath: "/clevertap_sw.js"
-  };
-  window.clevertap.notifications.push(notifObj);
-
-  // If SDK is ready, call push API too (this triggers immediate display)
-  if (typeof window.clevertap.push === "function") {
-    window.clevertap.push(["notifications", notifObj]);
-  } else {
-    // optional: poll briefly for SDK availability (short, safe)
-    let tries = 0;
-    const t = setInterval(() => {
-      tries += 1;
-      if (typeof window.clevertap.push === "function") {
-        window.clevertap.push(["notifications", notifObj]);
-        clearInterval(t);
-      } else if (tries > 6) {
-        clearInterval(t);
-      }
-    }, 500);
-  }
-}, [screen]);
-
+    // minimal: just push to notifications
+    window.clevertap = window.clevertap || {};
+    window.clevertap.notifications = window.clevertap.notifications || [];
+    window.clevertap.notifications.push({
+      titleText: "Turn On Notifications?",
+      bodyText: "We will only send you relevant and useful updates.",
+      okButtonText: "Allow",
+      rejectButtonText: "Later",
+      okButtonColor: "#0b82ff",
+      askAgainTimeInSeconds: 30,
+      serviceWorkerPath: "/clevertap_sw.js", // must exist in public/
+    });
+  }, [screen]);
 
   async function fetchMovies(q) {
     setLoading(true);
     const url = q
-      ? `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}`
+      ? `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(
+          q
+        )}`
       : `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}&language=en-US&page=1`;
     const res = await fetch(url);
     const data = await res.json();
@@ -94,54 +49,53 @@ useEffect(() => {
     setLoading(false);
   }
 
- function handleLogin(e) {
-  e.preventDefault();
-  if (!email) return alert("Enter email");
+  function handleLogin(e) {
+    e.preventDefault();
+    if (!email) return alert("Enter email");
 
-  // stable, simple identity: lowercased email
-  const id = email.toLowerCase().trim();
+    // stable, simple identity: lowercased email
+    const id = email.toLowerCase().trim();
 
-  const siteProfile = {
-    Name: email.split("@")[0] || "User",
-    Identity: id,
-    Email: id,
-    "MSG-push": true
-  };
+    const siteProfile = {
+      Name: email.split("@")[0] || "User",
+      Identity: id,
+      Email: id,
+      "MSG-push": true,
+    };
 
-  // Docs-compatible minimal call (buffered CDN pattern)
-  window.clevertap = window.clevertap || {};
-  window.clevertap.onUserLogin = window.clevertap.onUserLogin || [];
-  window.clevertap.onUserLogin.push({ Site: siteProfile });
+    // Docs-compatible minimal call (buffered CDN pattern)
+    window.clevertap = window.clevertap || {};
+    window.clevertap.onUserLogin = window.clevertap.onUserLogin || [];
+    window.clevertap.onUserLogin.push({ Site: siteProfile });
 
-  // If clevertap.push is available call it too (safe)
-  if (typeof window.clevertap.push === "function") {
-    window.clevertap.push(["onUserLogin", { Site: siteProfile }]);
+    // If clevertap.push is available call it too (safe)
+    if (typeof window.clevertap.push === "function") {
+      window.clevertap.push(["onUserLogin", { Site: siteProfile }]);
+    }
+
+    setIdentity(id);
+    setScreen("home");
   }
 
-  setIdentity(id);
-  setScreen("home");
-}
+  function handleMovieClick(m) {
+    console.log("Movie object:", m);
 
- function handleMovieClick(m) {
-  console.log("Movie object:", m);
+    clevertap.event.push("Movie Clicked", {
+      id: String(m.id),
+      title: m.title || "",
+      release_date: m.release_date || "",
+      rating: m.vote_average || 0,
+      language: m.original_language || "",
 
-  clevertap.event.push("Movie Clicked", {
-    id: String(m.id),
-    title: m.title || "",
-    release_date: m.release_date || "",
-    rating: m.vote_average || 0,
-    language: m.original_language || "",
-
-    // full URLs for images
-    poster_url: m.poster_path
-      ? "https://image.tmdb.org/t/p/w300" + m.poster_path
-      : "",
-    backdrop_url: m.backdrop_path
-      ? "https://image.tmdb.org/t/p/w780" + m.backdrop_path
-      : "",
-  });
-}
-
+      // full URLs for images
+      poster_url: m.poster_path
+        ? "https://image.tmdb.org/t/p/w300" + m.poster_path
+        : "",
+      backdrop_url: m.backdrop_path
+        ? "https://image.tmdb.org/t/p/w780" + m.backdrop_path
+        : "",
+    });
+  }
 
   function triggerWebPopup() {
     clevertap.event.push("Web PopUp Trigger", { ts: Date.now() });
@@ -156,7 +110,10 @@ useEffect(() => {
         {screen === "home" && (
           <div className="flex gap-4 items-center">
             <span>User: {identity}</span>
-            <button onClick={triggerWebPopup} className="px-3 py-2 bg-green-500 text-white rounded">
+            <button
+              onClick={triggerWebPopup}
+              className="px-3 py-2 bg-green-500 text-white rounded"
+            >
               Show Web Pop-up
             </button>
           </div>
@@ -165,7 +122,10 @@ useEffect(() => {
 
       <main className="p-6 max-w-5xl mx-auto">
         {screen === "login" ? (
-          <form onSubmit={handleLogin} className="space-y-4 max-w-md mx-auto bg-white p-6 rounded shadow">
+          <form
+            onSubmit={handleLogin}
+            className="space-y-4 max-w-md mx-auto bg-white p-6 rounded shadow"
+          >
             <h2 className="text-xl font-semibold">Login</h2>
             <input
               type="email"
@@ -175,12 +135,13 @@ useEffect(() => {
               className="w-full border px-3 py-2 rounded"
               required
             />
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded">Sign In</button>
+            <button className="px-4 py-2 bg-indigo-600 text-white rounded">
+              Sign In
+            </button>
           </form>
         ) : (
           <>
-
-          <div id="ct-native-banner-slot"></div>
+            <div id="ct-native-banner-slot"></div>
 
             <div className="flex gap-2 mb-6">
               <input
@@ -189,10 +150,19 @@ useEffect(() => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
-              <button onClick={() => fetchMovies(query)} className="px-3 py-2 bg-blue-500 text-white rounded">
+              <button
+                onClick={() => fetchMovies(query)}
+                className="px-3 py-2 bg-blue-500 text-white rounded"
+              >
                 Search
               </button>
-              <button onClick={() => { setQuery(""); fetchMovies(); }} className="px-3 py-2 bg-gray-200 rounded">
+              <button
+                onClick={() => {
+                  setQuery("");
+                  fetchMovies();
+                }}
+                className="px-3 py-2 bg-gray-200 rounded"
+              >
                 Reset
               </button>
             </div>
@@ -208,7 +178,11 @@ useEffect(() => {
                     className="cursor-pointer bg-white rounded shadow overflow-hidden"
                   >
                     {m.poster_path ? (
-                      <img src={`https://image.tmdb.org/t/p/w300${m.poster_path}`} alt={m.title} className="w-full h-64 object-cover" />
+                      <img
+                        src={`https://image.tmdb.org/t/p/w300${m.poster_path}`}
+                        alt={m.title}
+                        className="w-full h-64 object-cover"
+                      />
                     ) : (
                       <div className="w-full h-64 bg-gray-200" />
                     )}
@@ -232,7 +206,9 @@ useEffect(() => {
           <button
             onClick={() => {
               clevertap.event.push("Popup CTA Clicked", { action: "claim" });
-              document.getElementById("ct-local-web-popup").classList.add("hidden");
+              document
+                .getElementById("ct-local-web-popup")
+                .classList.add("hidden");
             }}
             className="px-3 py-2 bg-indigo-600 text-white rounded"
           >
