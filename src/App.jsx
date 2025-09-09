@@ -32,7 +32,9 @@ useEffect(() => {
         rejectButtonText: "Later",
         okButtonColor: "#0b82ff",
         askAgainTimeInSeconds: 30, // re-ask after 30s if Later
-        serviceWorkerPath: "src/public/clevertap_sw.js"
+        serviceWorkerPath: "/clevertap_sw.js"
+
+
       },
     ]);
   }
