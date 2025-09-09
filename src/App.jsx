@@ -19,24 +19,66 @@ export default function App() {
   }, [screen]);
 
   // Show CleverTap soft push prompt when user lands on Home
+// useEffect(() => {
+//   if (screen !== "home") return;
+
+//   if (window.clevertap && typeof window.clevertap.push === "function") {
+//     window.clevertap.push([
+//       "notifications",
+//       {
+//         titleText: "Turn On Notifications?",
+//         bodyText: "We will only send you relevant and useful updates.",
+//         okButtonText: "Allow",
+//         rejectButtonText: "Later",
+//         okButtonColor: "#0b82ff",
+//         askAgainTimeInSeconds: 30, // re-ask after 30s if Later
+//         serviceWorkerPath: "/clevertap_sw.js"
+
+
+//       },
+//     ]);
+//   }
+// }, [screen]);
+
+// Show CleverTap soft push prompt when user lands on Home
 useEffect(() => {
   if (screen !== "home") return;
 
-  if (window.clevertap && typeof window.clevertap.push === "function") {
-    window.clevertap.push([
-      "notifications",
-      {
-        titleText: "Turn On Notifications?",
-        bodyText: "We will only send you relevant and useful updates.",
-        okButtonText: "Allow",
-        rejectButtonText: "Later",
-        okButtonColor: "#0b82ff",
-        askAgainTimeInSeconds: 30, // re-ask after 30s if Later
-        serviceWorkerPath: "/clevertap_sw.js"
+  // Avoid asking if user already denied notifications
+  if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+    console.log("Notifications permission denied by user.");
+    return;
+  }
 
+  // Ensure buffer exists and push object into it (works before SDK loads)
+  window.clevertap = window.clevertap || {};
+  window.clevertap.notifications = window.clevertap.notifications || [];
+  const notifObj = {
+    titleText: "Turn On Notifications?",
+    bodyText: "We will only send you relevant and useful updates.",
+    okButtonText: "Allow",
+    rejectButtonText: "Later",
+    okButtonColor: "#0b82ff",
+    askAgainTimeInSeconds: 30,
+    serviceWorkerPath: "/clevertap_sw.js"
+  };
+  window.clevertap.notifications.push(notifObj);
 
-      },
-    ]);
+  // If SDK is ready, call push API too (this triggers immediate display)
+  if (typeof window.clevertap.push === "function") {
+    window.clevertap.push(["notifications", notifObj]);
+  } else {
+    // optional: poll briefly for SDK availability (short, safe)
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      if (typeof window.clevertap.push === "function") {
+        window.clevertap.push(["notifications", notifObj]);
+        clearInterval(t);
+      } else if (tries > 6) {
+        clearInterval(t);
+      }
+    }, 500);
   }
 }, [screen]);
 
