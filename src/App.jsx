@@ -10,8 +10,6 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
-
-  
   // Fetch movies when on home
   useEffect(() => {
     if (screen === "home") {
@@ -19,19 +17,25 @@ export default function App() {
       fetchMovies();
     }
   }, [screen]);
+function requestSoftPrompt() {
+  if (window.clevertap && typeof window.clevertap.push === "function") {
+    window.clevertap.push([
+      "notifications",
+      {
+        titleText: "Turn On Notifications?",
+        bodyText: "We will only send you relevant and useful updates.",
+        okButtonText: "Allow",
+        rejectButtonText: "Later",
+        okButtonColor: "#0b82ff",
+        askAgainTimeInSeconds: 30,
+        serviceWorkerPath: "/clevertap_sw.js", // must be inside public/
+      },
+    ]);
+  } else {
+    console.warn("CleverTap SDK not ready yet.");
+  }
+}
 
-  // Show CleverTap soft push prompt when user lands on Home
-  useEffect(() => {
-    clevertap.notifications.push({
-      titleText: "Turn On Notifications?",
-      bodyText: "We will only send you relevant and useful updates.",
-      okButtonText: "Allow",
-      rejectButtonText: "Later",
-      okButtonColor: "#0b82ff",
-      askAgainTimeInSeconds: 30,
-      serviceWorkerPath: "/clevertap_sw.js", // must exist in public/
-    });
-  }, [screen]);
 
   async function fetchMovies(q) {
     setLoading(true);
@@ -108,10 +112,10 @@ export default function App() {
           <div className="flex gap-4 items-center">
             <span>User: {identity}</span>
             <button
-              onClick={triggerWebPopup}
-              className="px-3 py-2 bg-green-500 text-white rounded"
+              onClick={requestSoftPrompt}
+              className="px-4 py-2 bg-indigo-600 text-white rounded"
             >
-              Show Web Pop-up
+              Enable Notifications
             </button>
           </div>
         )}
