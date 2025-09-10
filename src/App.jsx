@@ -17,25 +17,25 @@ export default function App() {
       fetchMovies();
     }
   }, [screen]);
-function requestSoftPrompt() {
-  if (window.clevertap && typeof window.clevertap.push === "function") {
-    window.clevertap.push([
-      "notifications",
-      {
-        titleText: "Turn On Notifications?",
-        bodyText: "We will only send you relevant and useful updates.",
-        okButtonText: "Allow",
-        rejectButtonText: "Later",
-        okButtonColor: "#0b82ff",
-        askAgainTimeInSeconds: 30,
-        serviceWorkerPath: "/clevertap_sw.js", // must be inside public/
-      },
-    ]);
-  } else {
-    console.warn("CleverTap SDK not ready yet.");
-  }
-}
 
+  function requestSoftPrompt() {
+    if (window.clevertap && typeof window.clevertap.push === "function") {
+      window.clevertap.push([
+        "notifications",
+        {
+          titleText: "Turn On Notifications?",
+          bodyText: "We will only send you relevant and useful updates.",
+          okButtonText: "Allow",
+          rejectButtonText: "Later",
+          okButtonColor: "#0b82ff",
+          askAgainTimeInSeconds: 30,
+          serviceWorkerPath: "/clevertap_sw.js", // must be inside public/
+        },
+      ]);
+    } else {
+      alert("CleverTap SDK is still loading, please try again in a moment.");
+    }
+  }
 
   async function fetchMovies(q) {
     setLoading(true);
