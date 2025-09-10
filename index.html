@@ -1,6 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Movies Demo</title>
+
+    <!-- Buffer soft prompt BEFORE clevertap.min.js loads (doc-style) -->
+    <script>
+      window.clevertap = window.clevertap || {};
+      window.clevertap.notifications = window.clevertap.notifications || [];
+      window.clevertap.notifications.push({
+        titleText: "Turn On Notifications?",
+        bodyText: "We will only send you relevant and useful updates.",
+        okButtonText: "Allow",
+        rejectButtonText: "Later",
+        okButtonColor: "#0b82ff",
+        askAgainTimeInSeconds: 30,
+        serviceWorkerPath: "clevertap_sw.js"
+      });
+    </script>
+
+    <!-- CleverTap snippet (unchanged doc-style) -->
     <script type="text/javascript">
       var clevertap = {
         event: [],
@@ -10,10 +30,9 @@
         notifications: [],
         privacy: [],
       };
-      // replace with the CLEVERTAP_ACCOUNT_ID with the actual ACCOUNT ID value from your Dashboard -> Settings page
       clevertap.account.push({ id: "R57-875-KK7Z" });
-      clevertap.privacy.push({ optOut: false }); //set the flag to true, if the user of the device opts out of sharing their data
-      clevertap.privacy.push({ useIP: false }); //set the flag to true, if the user agrees to share their IP data
+      clevertap.privacy.push({ optOut: false });
+      clevertap.privacy.push({ useIP: false });
       (function () {
         var wzrk = document.createElement("script");
         wzrk.type = "text/javascript";
@@ -27,15 +46,11 @@
       })();
     </script>
 
+    <!-- Firebase minimal init (keeps your credentials) -->
     <script type="module">
-      // Import the functions you need from the SDKs you need
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
-      // TODO: Add SDKs for Firebase products that you want to use
-      // https://firebase.google.com/docs/web/setup#available-libraries
 
-      // Your web app's Firebase configuration
-      // For Firebase JS SDK v7.20.0 and later, measurementId is optional
       const firebaseConfig = {
         apiKey: "AIzaSyB0nT_1P6AJVqEVNPDS5-dxUDPy-pR0N0Q",
         authDomain: "react-native-c88d2.firebaseapp.com",
@@ -43,24 +58,16 @@
         storageBucket: "react-native-c88d2.firebasestorage.app",
         messagingSenderId: "836702820069",
         appId: "1:836702820069:web:8324d5a4e3c416783a660c",
-        measurementId: "G-3D5ECPENFD",
+        measurementId: "G-3D5ECPENFD"
       };
 
-      // Initialize Firebase
       const app = initializeApp(firebaseConfig);
       const analytics = getAnalytics(app);
     </script>
 
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
