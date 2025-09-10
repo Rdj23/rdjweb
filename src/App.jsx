@@ -45,7 +45,6 @@ export default function App() {
     };
 
     clevertap.onUserLogin.push({ Site: siteProfile });
-    
 
     setIdentity(id);
     setScreen("home");
@@ -59,18 +58,15 @@ export default function App() {
   }
 
   function requestSoftPrompt() {
-    clevertap.notifications.push([
-     
-      {
-        titleText: "Turn On Notifications?",
-        bodyText: "We will only send you relevant and useful updates.",
-        okButtonText: "Allow",
-        rejectButtonText: "Later",
-        okButtonColor: "#0b82ff",
-        askAgainTimeInSeconds: 30,
-        serviceWorkerPath: "/clevertap_sw.js",
-      },
-    ]);
+    clevertap.notifications.push({
+      titleText: "Turn On Notifications?",
+      bodyText: "We will only send you relevant and useful updates.",
+      okButtonText: "Allow",
+      rejectButtonText: "Later",
+      okButtonColor: "#0b82ff",
+      askAgainTimeInSeconds: 30,
+      serviceWorkerPath: "/clevertap_sw.js",
+    });
   }
 
   return (
