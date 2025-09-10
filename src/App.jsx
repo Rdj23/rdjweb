@@ -59,8 +59,8 @@ export default function App() {
   }
 
   function requestSoftPrompt() {
-    clevertap.push([
-      "notifications",
+    clevertap.notifications.push([
+     
       {
         titleText: "Turn On Notifications?",
         bodyText: "We will only send you relevant and useful updates.",
