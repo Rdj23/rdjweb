@@ -57,16 +57,24 @@ export default function App() {
     });
   }
 
+  // ✅ Correct soft prompt call
   function requestSoftPrompt() {
-    clevertap.notifications.push({
-      titleText: "Turn On Notifications?",
-      bodyText: "We will only send you relevant and useful updates.",
-      okButtonText: "Allow",
-      rejectButtonText: "Later",
-      okButtonColor: "#0b82ff",
-      askAgainTimeInSeconds: 30,
-      serviceWorkerPath: "/clevertap_sw.js",
-    });
+    if (window.clevertap && typeof window.clevertap.push === "function") {
+      window.clevertap.push([
+        "notifications",
+        {
+          titleText: "Turn On Notifications?",
+          bodyText: "We will only send you relevant and useful updates.",
+          okButtonText: "Allow",
+          rejectButtonText: "Later",
+          okButtonColor: "#0b82ff",
+          askAgainTimeInSeconds: 30,
+          serviceWorkerPath: "/clevertap_sw.js", // must be in public/
+        },
+      ]);
+    } else {
+      alert("CleverTap SDK not ready yet. Try again in a second.");
+    }
   }
 
   return (
@@ -107,6 +115,9 @@ export default function App() {
           </form>
         ) : (
           <>
+            {/* Native Display slot */}
+            <div id="ct-native-banner-slot"></div>
+
             <div className="flex gap-2 mb-6">
               <input
                 className="border px-3 py-2 rounded flex-1"
