@@ -16,7 +16,7 @@
         rejectButtonText: "Later",
         okButtonColor: "#0b82ff",
         askAgainTimeInSeconds: 30,
-        serviceWorkerPath: "clevertap_sw.js"
+        serviceWorkerPath: "clevertap_sw.js",
       });
     </script>
 
@@ -58,18 +58,30 @@
         storageBucket: "react-native-c88d2.firebasestorage.app",
         messagingSenderId: "836702820069",
         appId: "1:836702820069:web:8324d5a4e3c416783a660c",
-        measurementId: "G-3D5ECPENFD"
+        measurementId: "G-3D5ECPENFD",
       };
 
       const app = initializeApp(firebaseConfig);
       const analytics = getAnalytics(app);
     </script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- CleverTap local popup slot (web pop-up) -->
+    <div id="ct-local-web-popup" style="display: none"></div>
+
+    <!-- Native display slot used by banner/carousel campaigns -->
+    <div
+      id="ct-native-banner-slot"
+      class="ct-native-slot"
+      style="width: 100%; height: 300px"
+    ></div>
   </body>
 </html>

@@ -10,6 +10,8 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
+
+  
   // Fetch movies when on home
   useEffect(() => {
     if (screen === "home") {
