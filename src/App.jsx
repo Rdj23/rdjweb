@@ -10,32 +10,13 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch movies when on home
+  // Page Viewed event when Home loads
   useEffect(() => {
     if (screen === "home") {
       clevertap.event.push("Page Viewed", { page: "Home" });
       fetchMovies();
     }
   }, [screen]);
-
-  function requestSoftPrompt() {
-    if (window.clevertap && typeof window.clevertap.push === "function") {
-      window.clevertap.push([
-        "notifications",
-        {
-          titleText: "Turn On Notifications?",
-          bodyText: "We will only send you relevant and useful updates.",
-          okButtonText: "Allow",
-          rejectButtonText: "Later",
-          okButtonColor: "#0b82ff",
-          askAgainTimeInSeconds: 30,
-          serviceWorkerPath: "/clevertap_sw.js", // must be inside public/
-        },
-      ]);
-    } else {
-      alert("CleverTap SDK is still loading, please try again in a moment.");
-    }
-  }
 
   async function fetchMovies(q) {
     setLoading(true);
@@ -52,9 +33,8 @@ export default function App() {
 
   function handleLogin(e) {
     e.preventDefault();
-    if (!email) return alert("Enter email");
+    if (!email) return;
 
-    // stable, simple identity: lowercased email
     const id = email.toLowerCase().trim();
 
     const siteProfile = {
@@ -64,44 +44,33 @@ export default function App() {
       "MSG-push": true,
     };
 
-    // Docs-compatible minimal call (buffered CDN pattern)
-    window.clevertap = window.clevertap || {};
-    window.clevertap.onUserLogin = window.clevertap.onUserLogin || [];
-    window.clevertap.onUserLogin.push({ Site: siteProfile });
-
-    // If clevertap.push is available call it too (safe)
-    if (typeof window.clevertap.push === "function") {
-      window.clevertap.push(["onUserLogin", { Site: siteProfile }]);
-    }
+    clevertap.onUserLogin.push({ Site: siteProfile });
+    clevertap.push(["onUserLogin", { Site: siteProfile }]);
 
     setIdentity(id);
     setScreen("home");
   }
 
   function handleMovieClick(m) {
-    console.log("Movie object:", m);
-
     clevertap.event.push("Movie Clicked", {
       id: String(m.id),
       title: m.title || "",
-      release_date: m.release_date || "",
-      rating: m.vote_average || 0,
-      language: m.original_language || "",
-
-      // full URLs for images
-      poster_url: m.poster_path
-        ? "https://image.tmdb.org/t/p/w300" + m.poster_path
-        : "",
-      backdrop_url: m.backdrop_path
-        ? "https://image.tmdb.org/t/p/w780" + m.backdrop_path
-        : "",
     });
   }
 
-  function triggerWebPopup() {
-    clevertap.event.push("Web PopUp Trigger", { ts: Date.now() });
-    const slot = document.getElementById("ct-local-web-popup");
-    if (slot) slot.classList.remove("hidden");
+  function requestSoftPrompt() {
+    clevertap.push([
+      "notifications",
+      {
+        titleText: "Turn On Notifications?",
+        bodyText: "We will only send you relevant and useful updates.",
+        okButtonText: "Allow",
+        rejectButtonText: "Later",
+        okButtonColor: "#0b82ff",
+        askAgainTimeInSeconds: 30,
+        serviceWorkerPath: "/clevertap_sw.js",
+      },
+    ]);
   }
 
   return (
@@ -142,8 +111,6 @@ export default function App() {
           </form>
         ) : (
           <>
-            <div id="ct-native-banner-slot"></div>
-
             <div className="flex gap-2 mb-6">
               <input
                 className="border px-3 py-2 rounded flex-1"
@@ -195,28 +162,6 @@ export default function App() {
           </>
         )}
       </main>
-
-      {/* Local dev web-popup fallback */}
-      <div
-        id="ct-local-web-popup"
-        className="hidden fixed inset-0 bg-black/50 flex items-center justify-center"
-      >
-        <div className="bg-white rounded p-6 max-w-sm w-full">
-          <h3 className="text-lg font-semibold mb-2">Special Offer</h3>
-          <p className="mb-4">Get 20% off on premium!</p>
-          <button
-            onClick={() => {
-              clevertap.event.push("Popup CTA Clicked", { action: "claim" });
-              document
-                .getElementById("ct-local-web-popup")
-                .classList.add("hidden");
-            }}
-            className="px-3 py-2 bg-indigo-600 text-white rounded"
-          >
-            Claim
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
