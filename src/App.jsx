@@ -58,24 +58,18 @@ export default function App() {
   }
 
   // ✅ Correct soft prompt call
-  function requestSoftPrompt() {
-    if (window.clevertap && typeof window.clevertap.push === "function") {
-      window.clevertap.push([
-        "notifications",
-        {
-          titleText: "Turn On Notifications?",
-          bodyText: "We will only send you relevant and useful updates.",
-          okButtonText: "Allow",
-          rejectButtonText: "Later",
-          okButtonColor: "#0b82ff",
-          askAgainTimeInSeconds: 30,
-          serviceWorkerPath: "/clevertap_sw.js", // must be in public/
-        },
-      ]);
-    } else {
-      alert("CleverTap SDK not ready yet. Try again in a second.");
-    }
-  }
+   let pushnotif = () => {
+        clevertap.notifications.push({
+          titleText: "Would you like to receive Push Notifications?",
+          bodyText:
+            "We promise to only send you relevant content and give you updates on your transactions",
+          okButtonText: "Sign me up!",
+          rejectButtonText: "No thanks",
+          okButtonColor: "#F28046",
+          askAgainTimeInSeconds: 5,
+          "serviceWorkerPath": "/clevertap_sw.js"
+        });
+      };
 
   return (
     <div className="min-h-screen font-sans bg-gray-50">
@@ -85,7 +79,7 @@ export default function App() {
           <div className="flex gap-4 items-center">
             <span>User: {identity}</span>
             <button
-              onClick={requestSoftPrompt}
+              onClick={pushnotif}
               className="px-4 py-2 bg-indigo-600 text-white rounded"
             >
               Enable Notifications
