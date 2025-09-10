@@ -45,7 +45,7 @@ export default function App() {
     };
 
     clevertap.onUserLogin.push({ Site: siteProfile });
-    clevertap.push(["onUserLogin", { Site: siteProfile }]);
+    
 
     setIdentity(id);
     setScreen("home");
