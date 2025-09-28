@@ -12,23 +12,7 @@
 
     <title>Movies Demo</title>
 
-      <script>
-      window.clevertap = window.clevertap || {};
-      window.clevertap.notifications = window.clevertap.notifications || [];
-      window.clevertap.notifications.push({
-        titleText: "Turn On Notifications?",
-        bodyText: "We will only send you relevant and useful updates.",
-        okButtonText: "Allow",
-        rejectButtonText: "Later",
-        okButtonColor: "#0b82ff",
-        askAgainTimeInSeconds: 30,
-        serviceWorkerPath: "clevertap_sw.js"
-      });
-    </script>
-    
-
-    <!-- CleverTap snippet (unchanged doc-style) -->
-    <!-- <script type="text/javascript">
+    <script type="text/javascript">
       var clevertap = {
         event: [],
         profile: [],
@@ -37,10 +21,11 @@
         notifications: [],
         privacy: [],
       };
+      // replace with the CLEVERTAP_ACCOUNT_ID with the actual ACCOUNT ID value from your Dashboard –> Settings page
       clevertap.account.push({ id: "R57-875-KK7Z" });
-
-      clevertap.privacy.push({ optOut: false });
-      clevertap.privacy.push({ useIP: false });
+      clevertap.privacy.push({ optOut: false }); //set the flag to true, if the user of the device opts out of sharing their data
+      clevertap.dismissSpamControl = true;
+      clevertap.privacy.push({ useIP: false }); //set the flag to true, if the user agrees to share their IP data
       (function () {
         var wzrk = document.createElement("script");
         wzrk.type = "text/javascript";
@@ -52,25 +37,21 @@
         var s = document.getElementsByTagName("script")[0];
         s.parentNode.insertBefore(wzrk, s);
       })();
-    </script> -->
+    </script>
 
-    <script type="text/javascript">
-    var clevertap = {event:[], profile:[], account:[], onUserLogin:[], notifications:[], privacy:[]};
-    // replace with the CLEVERTAP_ACCOUNT_ID with the actual ACCOUNT ID value from your Dashboard –> Settings page
-    clevertap.account.push({"id":"R57-875-KK7Z"});
-    clevertap.privacy.push({optOut: false}); //set the flag to true, if the user of the device opts out of sharing their data
-    clevertap.dismissSpamControl = true;
-    clevertap.privacy.push({useIP: false}); //set the flag to true, if the user agrees to share their IP data
-    (function () {
-        var wzrk = document.createElement('script');
-        wzrk.type = 'text/javascript';
-        wzrk.async = true;
-        wzrk.src = ('https:' == document.location.protocol ? 'https://d2r1yp2w7bby2u.cloudfront.net' : 'http://static.clevertap.com') + '/js/clevertap.min.js';
-        var s = document.getElementsByTagName('script')[0];
-        s.parentNode.insertBefore(wzrk, s);
-    })();
-</script>
-
+    <script>
+      window.clevertap = window.clevertap || {};
+      window.clevertap.notifications = window.clevertap.notifications || [];
+      window.clevertap.notifications.push({
+        titleText: "Turn On Notifications?",
+        bodyText: "We will only send you relevant and useful updates.",
+        okButtonText: "Allow",
+        rejectButtonText: "Later",
+        okButtonColor: "#0b82ff",
+        askAgainTimeInSeconds: 30,
+        serviceWorkerPath: "clevertap_sw.js",
+      });
+    </script>
 
     <!-- Firebase minimal init (keeps your credentials) -->
     <script type="module">
