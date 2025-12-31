@@ -81,5 +81,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      function getParam(name) {
+        return new URLSearchParams(window.location.search).get(name);
+      }
+
+      const utmContent = getParam("utm_content");
+      const utmTerm = getParam("utm_term");
+
+      if (utmContent || utmTerm) {
+        clevertap.event.push("UTM_Visited", {
+          utm_content: utmContent,
+          utm_term: utmTerm
+        });
+      }
+    </script>
   </body>
 </html>

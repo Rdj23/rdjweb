@@ -8,6 +8,7 @@ import LoginPage from "./pages/LoginPage";
 
 const clevertap = window.clevertap;
 
+
 export default function App() {
   const [identity, setIdentity] = useState(() => localStorage.getItem("user_identity") || "");
   const [profile, setProfile] = useState(() => {
