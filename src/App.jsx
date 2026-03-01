@@ -46,7 +46,13 @@ export default function App() {
   };
 
   const handleProfileUpdate = (updatedProfile) => {
-    clevertap.profile.push({ Site: updatedProfile });
+    clevertap.profile.push({
+      Site: {
+        ...updatedProfile,
+        "MSG-email": true,
+        "MSG-dnd": false,
+      },
+    });
     
     // Update the master profile state in App
     const newProfile = { ...profile, ...updatedProfile };

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 export default function ProfilePage({ identity, profile, onLogout, onProfileUpdate }) {
   // Use local component state for the form inputs, initialized from props
   const [name, setName] = useState(profile.Name || "");
+  const [email, setEmail] = useState(profile.Email || identity || "");
   const [mobile, setMobile] = useState(profile.Phone || "");
   const [favGenre, setFavGenre] = useState(profile.FavGenre || "");
   const [error, setError] = useState("");
@@ -10,9 +11,10 @@ export default function ProfilePage({ identity, profile, onLogout, onProfileUpda
   // When the profile prop changes (e.g., on re-login), update the form
   useEffect(() => {
     setName(profile.Name || "");
+    setEmail(profile.Email || identity || "");
     setMobile(profile.Phone || "");
     setFavGenre(profile.FavGenre || "");
-  }, [profile]);
+  }, [profile, identity]);
 
 
   const validateAndSetMobile = (value) => {
@@ -32,6 +34,7 @@ export default function ProfilePage({ identity, profile, onLogout, onProfileUpda
     }
     const updatedProfile = {
       Name: name,
+      Email: email,
       Phone: mobile,
       FavGenre: favGenre,
     };
@@ -42,9 +45,18 @@ export default function ProfilePage({ identity, profile, onLogout, onProfileUpda
   return (
     <div className="w-full max-w-md p-8 mx-auto space-y-6 bg-white rounded-xl shadow-lg">
       <h2 className="text-2xl font-bold text-center text-gray-800">Your Profile</h2>
-      <div className="text-center text-gray-600">Email: {identity}</div>
-      
       <div className="space-y-4">
+        <div>
+          <label htmlFor="email" className="text-sm font-medium text-gray-700">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 mt-1 text-gray-800 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
         <div>
           <label htmlFor="name" className="text-sm font-medium text-gray-700">Name</label>
           <input
@@ -56,7 +68,7 @@ export default function ProfilePage({ identity, profile, onLogout, onProfileUpda
         </div>
 
         <div>
-          <label htmlFor="mobile" className="text-sm font-medium text-gray-700">Mobile Number</label>
+          <label htmlFor="mobile" className="text-sm font-medium text-gray-700">Mobile Number <span className="text-gray-400 font-normal">(Optional)</span></label>
           <input
             id="mobile"
             value={mobile}
