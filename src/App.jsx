@@ -50,7 +50,7 @@ export default function App() {
       Site: {
         ...updatedProfile,
         "MSG-email": true,
-        "MSG-dnd": false,
+        "MSG-dndEmail": false,
       },
     });
     
