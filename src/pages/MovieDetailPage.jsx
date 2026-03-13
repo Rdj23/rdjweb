@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import MovieTrailer from "../components/MovieTrailer";
+import { addEventToCleverTap } from "../utils/cleverTap";
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_KEY || "";
 const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/";
@@ -30,7 +31,7 @@ export default function MovieDetailPage({ identity }) {
         console.log(movieData);
         setCast(creditsData.cast.slice(0, 10)); // Get top 10 cast members
 
-        window.clevertap.event.push("Movie Viewed", {
+        addEventToCleverTap("Movie Viewed", {
           "Movie ID": movieData.id,
           "Movie Title": movieData.title,
           "Genre": movieData.genres.map((g) => g.name).join(", "),
@@ -56,7 +57,7 @@ export default function MovieDetailPage({ identity }) {
     if (!movie) return;
 
     // Push an event to CleverTap
-    window.clevertap.event.push("Added to Watchlist", {
+    addEventToCleverTap("Added to Watchlist", {
       "Movie Title": movie.title,
     });
 

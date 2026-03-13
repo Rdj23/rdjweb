@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { addEventToCleverTap } from "../utils/cleverTap";
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_KEY || "";
 const IMAGE_BASE_URL_W300 = "https://image.tmdb.org/t/p/w300";
@@ -19,7 +20,7 @@ export default function HomePage() {
   const [activeFilter, setActiveFilter] = useState(filterChips[0].name);
 
   useEffect(() => {
-    window.clevertap.event.push("Page Viewed", { "Page Name": "Home" });
+    addEventToCleverTap("Page Viewed", { "Page Name": "Home" });
   }, []); // The empty dependency array ensures it runs only once
 
 

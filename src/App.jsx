@@ -5,8 +5,7 @@ import HomePage from "./pages/HomePage";
 import MovieDetailPage from "./pages/MovieDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
-
-const clevertap = window.clevertap;
+import { updateProfileOnClevertap } from "./utils/cleverTap";
 
 
 export default function App() {
@@ -29,8 +28,8 @@ export default function App() {
       Identity: id,
       Email: id,
     };
-    clevertap.onUserLogin.push({ Site: userProfile });
-    
+    updateProfileOnClevertap(userProfile, true);
+
     localStorage.setItem("user_identity", id);
     localStorage.setItem("user_profile", JSON.stringify(userProfile));
     setIdentity(id);
@@ -46,19 +45,18 @@ export default function App() {
   };
 
   const handleProfileUpdate = (updatedProfile) => {
-    clevertap.profile.push({
-      Site: {
-        ...updatedProfile,
-        "MSG-email": true,
-        "MSG-dndEmail": false,
-      },
-    });
-    
+    const payloadWithDefaults = {
+      ...updatedProfile,
+      "MSG-email": true,
+      "MSG-dndEmail": false,
+    };
+    updateProfileOnClevertap(payloadWithDefaults);
+
     // Update the master profile state in App
     const newProfile = { ...profile, ...updatedProfile };
     setProfile(newProfile);
     localStorage.setItem("user_profile", JSON.stringify(newProfile));
-    
+
     alert("Profile updated successfully!");
   };
 
