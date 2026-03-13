@@ -1,5 +1,3 @@
-import moment from "moment";
-
 // CleverTap Payload Properties Mapping
 export const cleverTapPayloadProperties = {
   mobile: "phone",
@@ -51,7 +49,7 @@ export const updateProfileOnClevertap = (updateEventPayload, fireInitialEvent = 
           payloadData[cleverTapPayloadProperties.gender] = updateEventPayload[key].charAt(0);
         } else if (cleverTapPayloadProperties[key] === cleverTapPayloadProperties.dob) {
           // Convert the String Based Date into the Javascript Date Object
-          payloadData[cleverTapPayloadProperties.dob] = moment(updateEventPayload[key]).toDate();
+          payloadData[cleverTapPayloadProperties.dob] = new Date(updateEventPayload[key]);
         } else {
           // Handle any other Keys appearing in the ENUM where Special Handling is Not Required
           payloadData[cleverTapPayloadProperties[key]] = updateEventPayload[key];
