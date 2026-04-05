@@ -65,12 +65,13 @@ export default function MovieDetailPage() {
     if (!movie || !isFormValid) return;
 
     // Update CleverTap profile with user details
+    // Pass Phone directly (not "mobile") to avoid XOR encryption
     updateProfileOnClevertap(
       {
         Name: form.name,
         Email: form.email,
         Identity: form.email,
-        mobile: form.phone,
+        Phone: `+91${form.phone}`,
       },
       true
     );
