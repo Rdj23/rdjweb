@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import Topbar from "./components/Topbar";
 import HomePage from "./pages/HomePage";
@@ -16,11 +16,7 @@ export default function App() {
   });
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!identity && window.location.pathname !== '/login') {
-      navigate("/login");
-    }
-  }, [identity, navigate]);
+  // No login redirect — all content is accessible without authentication
 
   const handleLogin = (id) => {
     const userProfile = {

@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import MovieTrailer from "../components/MovieTrailer";
-import { addEventToCleverTap } from "../utils/cleverTap";
+import { addEventToCleverTap, updateProfileOnClevertap } from "../utils/cleverTap";
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_KEY || "";
 const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/";
 
-export default function MovieDetailPage({ identity }) {
+export default function MovieDetailPage() {
   const { movieId } = useParams();
   const [movie, setMovie] = useState(null);
   const [cast, setCast] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
 
   useEffect(() => {
     async function fetchData() {
@@ -28,8 +30,7 @@ export default function MovieDetailPage({ identity }) {
         const creditsData = await creditsRes.json();
 
         setMovie(movieData);
-        console.log(movieData);
-        setCast(creditsData.cast.slice(0, 10)); // Get top 10 cast members
+        setCast(creditsData.cast.slice(0, 10));
 
         addEventToCleverTap("Movie Viewed", {
           "Movie ID": movieData.id,
@@ -53,22 +54,53 @@ export default function MovieDetailPage({ identity }) {
     fetchData();
   }, [movieId]);
 
+  const isFormValid =
+    form.name.trim() !== "" &&
+    form.email.trim() !== "" &&
+    form.phone.trim() !== "" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
+    /^\d{10}$/.test(form.phone);
+
+  const handleBuyNow = () => {
+    if (!movie || !isFormValid) return;
+
+    // Update CleverTap profile with user details
+    updateProfileOnClevertap(
+      {
+        Name: form.name,
+        Email: form.email,
+        Identity: form.email,
+        mobile: form.phone,
+      },
+      true
+    );
+
+    // Fire the Charged event
+    addEventToCleverTap("Charged", {
+      "Movie Title": movie.title,
+      "Movie ID": movie.id,
+      "Amount": 199,
+      "Currency": "INR",
+      "Name": form.name,
+      "Email": form.email,
+      "Phone": form.phone,
+    });
+
+    setShowModal(false);
+    setForm({ name: "", email: "", phone: "" });
+    alert(`Thank you ${form.name}! Your purchase for '${movie.title}' is confirmed.`);
+  };
+
   const addToWatchlist = () => {
     if (!movie) return;
-
-    // Push an event to CleverTap
     addEventToCleverTap("Added to Watchlist", {
       "Movie Title": movie.title,
     });
-
-    // Update the user's profile with the new watchlist item
-    // NOTE: This assumes a simple comma-separated string. A real app might handle arrays.
     window.clevertap.profile.push({
       Site: {
-        watchlist: { $add: movie.title }, // Use the $add operator to add to a multi-value property
+        watchlist: { $add: movie.title },
       },
     });
-
     alert(`'${movie.title}' added to your watchlist!`);
   };
 
@@ -105,14 +137,123 @@ export default function MovieDetailPage({ identity }) {
             ))}
           </div>
           <p className="text-gray-700 leading-relaxed">{movie.overview}</p>
-          <button
-            onClick={addToWatchlist}
-            className="mt-6 px-6 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-          >
-            Add to Watchlist
-          </button>
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-6 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+            >
+              Buy Now - &#8377;199
+            </button>
+            <button
+              onClick={addToWatchlist}
+              className="px-6 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              Add to Watchlist
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* PII Data Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-start bg-black/50">
+          <div className="bg-white w-full max-w-md ml-0 md:ml-8 h-full md:h-auto md:rounded-xl shadow-2xl p-6 md:p-8 overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Complete Your Purchase
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6 p-3 bg-gray-50 rounded-lg">
+              <img
+                src={
+                  movie.poster_path
+                    ? `${IMAGE_BASE_URL}w92${movie.poster_path}`
+                    : "https://via.placeholder.com/92x138"
+                }
+                alt={movie.title}
+                className="w-16 rounded"
+              />
+              <div>
+                <p className="font-semibold text-gray-800">{movie.title}</p>
+                <p className="text-green-600 font-bold text-lg">&#8377;199</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Enter your full name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="Enter your email"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                />
+                {form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) && (
+                  <p className="text-red-500 text-xs mt-1">Enter a valid email address</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-50 text-gray-500 text-sm">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })
+                    }
+                    placeholder="10-digit mobile number"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  />
+                </div>
+                {form.phone && !/^\d{10}$/.test(form.phone) && (
+                  <p className="text-red-500 text-xs mt-1">Enter a valid 10-digit mobile number</p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={handleBuyNow}
+              disabled={!isFormValid}
+              className={`w-full mt-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+                isFormValid
+                  ? "bg-green-600 hover:bg-green-700 cursor-pointer"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+            >
+              Proceed & Pay &#8377;199
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Cast</h2>
