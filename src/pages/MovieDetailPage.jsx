@@ -64,17 +64,13 @@ export default function MovieDetailPage() {
   const handleBuyNow = () => {
     if (!movie || !isFormValid) return;
 
-    // Update CleverTap profile with user details
-    // Pass Phone directly (not "mobile") to avoid XOR encryption
-    updateProfileOnClevertap(
-      {
-        Name: form.name,
-        Email: form.email,
-        Identity: form.email,
-        Phone: `+91${form.phone}`,
-      },
-      true
-    );
+    // Append PII to the existing profile (same identity assigned on landing)
+    // Using profile.push (fireInitialEvent=false) so it updates, not creates new
+    updateProfileOnClevertap({
+      Name: form.name,
+      Email: form.email,
+      Phone: `+91${form.phone}`,
+    });
 
     // Fire the Charged event
     addEventToCleverTap("Charged", {

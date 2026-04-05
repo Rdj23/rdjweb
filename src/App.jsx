@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import Topbar from "./components/Topbar";
 import HomePage from "./pages/HomePage";
@@ -16,7 +16,16 @@ export default function App() {
   });
   const navigate = useNavigate();
 
-  // No login redirect — all content is accessible without authentication
+  // Assign a unique identity on first visit so all events track on one profile
+  useEffect(() => {
+    let userId = localStorage.getItem("ct_user_id");
+    if (!userId) {
+      userId = "user_" + crypto.randomUUID();
+      localStorage.setItem("ct_user_id", userId);
+    }
+    // Register this identity with CleverTap via onUserLogin
+    updateProfileOnClevertap({ Identity: userId }, true);
+  }, []);
 
   const handleLogin = (id) => {
     const userProfile = {
