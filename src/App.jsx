@@ -72,7 +72,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
           <Route path="/" element={<HomePage />} />
-          <Route path="/movie/:movieId" element={<MovieDetailPage />} />
+          <Route
+            path="/movie/:movieId"
+            element={<MovieDetailPage identity={identity} profile={profile} />}
+          />
           <Route 
             path="/profile" 
             element={
