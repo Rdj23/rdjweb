@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import Topbar from "./components/Topbar";
 import HomePage from "./pages/HomePage";
 import MovieDetailPage from "./pages/MovieDetailPage";
@@ -28,6 +28,13 @@ function LoginRoute({ identity, onLogin, onSignup }) {
     return <Navigate to="/" replace />;
   }
   return <LoginPage onLogin={onLogin} onSignup={onSignup} />;
+}
+
+// Old /movie/:movieId links (bookmarks, external CleverTap campaigns) keep
+// working by resolving to the unified /title/movie/:id route.
+function LegacyMovieRedirect() {
+  const { movieId } = useParams();
+  return <Navigate to={`/title/movie/${movieId}`} replace />;
 }
 
 export default function App() {
@@ -113,9 +120,10 @@ export default function App() {
           />
           <Route path="/" element={<HomePage />} />
           <Route
-            path="/movie/:movieId"
+            path="/title/:type/:id"
             element={<MovieDetailPage identity={identity} profile={profile} />}
           />
+          <Route path="/movie/:movieId" element={<LegacyMovieRedirect />} />
           <Route
             path="/profile"
             element={

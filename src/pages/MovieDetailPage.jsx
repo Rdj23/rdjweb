@@ -8,62 +8,70 @@ const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/";
 const PENDING_ACTION_KEY = "pendingMovieAction";
 
 export default function MovieDetailPage({ identity, profile = {} }) {
-  const { movieId } = useParams();
+  const { type, id } = useParams();
   const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
   const [cast, setCast] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // "movie" or "tv" (lowercase) - identifies the content kind on CleverTap events
+  const contentType = type === "tv" ? "tv" : "movie";
+  // TMDB uses different field names for movies vs TV series
+  const title = movie ? movie.title || movie.name : "";
+
   // Deterministic per-title price: varies across content, stable across
-  // re-renders/re-visits of the same title.
+  // re-renders/re-visits of the same title. Seeded with the type too so a
+  // movie and a series that happen to share a TMDB id don't get the same price.
   const price = useMemo(
-    () => (movie ? generateRandomPrice(movie.id) : 0),
-    [movie]
+    () => (movie ? generateRandomPrice(`${contentType}_${movie.id}`) : 0),
+    [movie, contentType]
   );
 
   useEffect(() => {
     async function fetchData() {
-      if (!movieId) return;
+      if (!id) return;
       setLoading(true);
       try {
-        const movieUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_KEY}`;
-        const creditsUrl = `https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${TMDB_KEY}`;
+        const detailUrl = `https://api.themoviedb.org/3/${contentType}/${id}?api_key=${TMDB_KEY}`;
+        const creditsUrl = `https://api.themoviedb.org/3/${contentType}/${id}/credits?api_key=${TMDB_KEY}`;
 
-        const [movieRes, creditsRes] = await Promise.all([
-          fetch(movieUrl),
+        const [detailRes, creditsRes] = await Promise.all([
+          fetch(detailUrl),
           fetch(creditsUrl),
         ]);
-        const movieData = await movieRes.json();
+        const detailData = await detailRes.json();
         const creditsData = await creditsRes.json();
 
-        setMovie(movieData);
+        setMovie(detailData);
         setCast(creditsData.cast.slice(0, 10));
 
         addEventToCleverTap("Movie Viewed", {
-          "Movie ID": movieData.id,
-          "Movie Title": movieData.title,
-          "Genre": movieData.genres.map((g) => g.name).join(", "),
-          "Release_date": movieData.release_date,
-          "Rating": movieData.vote_average,
-          "poster_url": movieData.poster_path
-            ? "https://image.tmdb.org/t/p/w300" + movieData.poster_path
+          "Movie ID": detailData.id,
+          "Movie Title": detailData.title || detailData.name,
+          "Type": contentType,
+          "Genre": detailData.genres.map((g) => g.name).join(", "),
+          "Release_date": detailData.release_date || detailData.first_air_date,
+          "Rating": detailData.vote_average,
+          "poster_url": detailData.poster_path
+            ? "https://image.tmdb.org/t/p/w300" + detailData.poster_path
             : "",
-          "backdrop_url": movieData.backdrop_path
-            ? "https://image.tmdb.org/t/p/w780" + movieData.backdrop_path
+          "backdrop_url": detailData.backdrop_path
+            ? "https://image.tmdb.org/t/p/w780" + detailData.backdrop_path
             : "",
         });
       } catch (e) {
-        console.error("Failed to fetch movie data", e);
+        console.error("Failed to fetch content data", e);
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, [movieId]);
+  }, [id, contentType]);
 
   // Runs the actual purchase - only ever called once we know `identity` is set,
   // so it always tracks against the signed-in profile, never "Guest".
   const performBuyNow = (currentMovie) => {
+    const currentTitle = currentMovie.title || currentMovie.name;
     const buyerName = profile.Name || "";
     const buyerEmail = profile.Email || identity || "";
     const buyerPhone = profile.Phone || "";
@@ -75,10 +83,11 @@ export default function MovieDetailPage({ identity, profile = {} }) {
       Phone: buyerPhone,
     });
 
-    const amount = generateRandomPrice(currentMovie.id);
+    const amount = generateRandomPrice(`${contentType}_${currentMovie.id}`);
     addEventToCleverTap("Charged", {
-      "Movie Title": currentMovie.title,
+      "Movie Title": currentTitle,
       "Movie ID": currentMovie.id,
+      "Type": contentType,
       "Amount": amount,
       "Currency": "INR",
       "Name": buyerName,
@@ -86,19 +95,21 @@ export default function MovieDetailPage({ identity, profile = {} }) {
       "Phone": buyerPhone,
     });
 
-    alert(`Thank you ${buyerName}! Your purchase for '${currentMovie.title}' is confirmed for ₹${amount}.`);
+    alert(`Thank you ${buyerName}! Your purchase for '${currentTitle}' is confirmed for ₹${amount}.`);
   };
 
   const performAddToWatchlist = (currentMovie) => {
+    const currentTitle = currentMovie.title || currentMovie.name;
     addEventToCleverTap("Added to Watchlist", {
-      "Movie Title": currentMovie.title,
+      "Movie Title": currentTitle,
+      "Type": contentType,
     });
     window.clevertap.profile.push({
       Site: {
-        watchlist: { $add: currentMovie.title },
+        watchlist: { $add: currentTitle },
       },
     });
-    alert(`'${currentMovie.title}' added to your watchlist!`);
+    alert(`'${currentTitle}' added to your watchlist!`);
   };
 
   // If the user isn't signed in yet, park the intended action and send them
@@ -108,9 +119,9 @@ export default function MovieDetailPage({ identity, profile = {} }) {
     if (!identity) {
       sessionStorage.setItem(
         PENDING_ACTION_KEY,
-        JSON.stringify({ movieId: currentMovie.id, action })
+        JSON.stringify({ movieId: currentMovie.id, type: contentType, action })
       );
-      navigate("/login", { state: { from: `/movie/${currentMovie.id}` } });
+      navigate("/login", { state: { from: `/title/${contentType}/${currentMovie.id}` } });
       return;
     }
     action === "buy" ? performBuyNow(currentMovie) : performAddToWatchlist(currentMovie);
@@ -120,14 +131,14 @@ export default function MovieDetailPage({ identity, profile = {} }) {
   const addToWatchlist = () => movie && requireAuth("watchlist", movie);
 
   // Resume a pending buy/watchlist action once the user is signed in and
-  // we're back on the movie they were trying to act on.
+  // we're back on the title they were trying to act on.
   useEffect(() => {
     if (!identity || !movie) return;
     const raw = sessionStorage.getItem(PENDING_ACTION_KEY);
     if (!raw) return;
     try {
       const pending = JSON.parse(raw);
-      if (pending.movieId === movie.id) {
+      if (pending.movieId === movie.id && pending.type === contentType) {
         sessionStorage.removeItem(PENDING_ACTION_KEY);
         pending.action === "buy" ? performBuyNow(movie) : performAddToWatchlist(movie);
       }
@@ -135,12 +146,12 @@ export default function MovieDetailPage({ identity, profile = {} }) {
       sessionStorage.removeItem(PENDING_ACTION_KEY);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [identity, movie]);
+  }, [identity, movie, contentType]);
 
   if (loading)
     return <div className="text-center text-gray-500">Loading details...</div>;
   if (!movie)
-    return <div className="text-center text-red-500">Movie not found.</div>;
+    return <div className="text-center text-red-500">Content not found.</div>;
 
   return (
     <div className="space-y-8">
@@ -151,12 +162,12 @@ export default function MovieDetailPage({ identity, profile = {} }) {
               ? `${IMAGE_BASE_URL}w300${movie.poster_path}`
               : "https://via.placeholder.com/300x450"
           }
-          alt={movie.title}
+          alt={title}
           className="w-full md:w-1/3 max-w-xs mx-auto rounded-lg shadow-xl"
         />
         <div className="md:w-2/3">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-            {movie.title}
+            {title}
           </h1>
           <p className="text-gray-500 mt-1">{movie.tagline}</p>
           <div className="flex flex-wrap gap-2 my-4">
@@ -175,7 +186,7 @@ export default function MovieDetailPage({ identity, profile = {} }) {
               onClick={handleBuyNow}
               className="px-6 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
             >
-              Buy Now - &#8377;{price}
+              {contentType === "tv" ? "Rent Now" : "Buy Now"} - &#8377;{price}
             </button>
             <button
               onClick={addToWatchlist}
@@ -192,7 +203,7 @@ export default function MovieDetailPage({ identity, profile = {} }) {
         <div className="flex overflow-x-auto gap-4 pb-4">
           {cast.map((member) => (
             <div
-              key={member.cast_id}
+              key={member.cast_id ?? `${member.id}-${member.character}`}
               className="flex-shrink-0 w-32 text-center"
             >
               <img
@@ -215,7 +226,7 @@ export default function MovieDetailPage({ identity, profile = {} }) {
 
       <div>
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Trailer</h2>
-        <MovieTrailer movieId={movie.id} />
+        <MovieTrailer movieId={movie.id} type={contentType} />
       </div>
     </div>
   );
