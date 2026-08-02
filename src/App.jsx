@@ -12,9 +12,22 @@ import { updateProfileOnClevertap } from "./utils/cleverTap";
 function RequireAuth({ identity, children }) {
   const location = useLocation();
   if (!identity) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
   return children;
+}
+
+// Bounce straight back home if a user who's already signed in lands on
+// /login directly. Whether to redirect is decided once, from the identity
+// at mount time - if we kept re-checking the live `identity` prop, this
+// would fire (and stomp the intended post-login destination) at the exact
+// moment handleLogin/handleSignup flips identity from empty to set.
+function LoginRoute({ identity, onLogin, onSignup }) {
+  const [wasAlreadyAuthed] = useState(() => Boolean(identity));
+  if (wasAlreadyAuthed) {
+    return <Navigate to="/" replace />;
+  }
+  return <LoginPage onLogin={onLogin} onSignup={onSignup} />;
 }
 
 export default function App() {
@@ -24,6 +37,12 @@ export default function App() {
     return savedProfile ? JSON.parse(savedProfile) : {};
   });
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Where to send the user once they're signed in - the page they were
+  // trying to act on (e.g. buy/wishlist a specific movie) when they were
+  // bounced to /login, or "/" if they navigated to /login directly.
+  const postLoginDestination = location.state?.from || "/";
 
   const handleLogin = (id) => {
     const userProfile = {
@@ -37,7 +56,7 @@ export default function App() {
     localStorage.setItem("user_profile", JSON.stringify(userProfile));
     setIdentity(id);
     setProfile(userProfile);
-    navigate("/");
+    navigate(postLoginDestination);
   };
 
   const handleSignup = ({ name, email, mobile }) => {
@@ -54,7 +73,7 @@ export default function App() {
     localStorage.setItem("user_profile", JSON.stringify(userProfile));
     setIdentity(id);
     setProfile(userProfile);
-    navigate("/");
+    navigate(postLoginDestination);
   };
 
   const handleLogout = () => {
@@ -89,28 +108,13 @@ export default function App() {
           <Route
             path="/login"
             element={
-              identity ? (
-                <Navigate to="/" replace />
-              ) : (
-                <LoginPage onLogin={handleLogin} onSignup={handleSignup} />
-              )
+              <LoginRoute identity={identity} onLogin={handleLogin} onSignup={handleSignup} />
             }
           />
-          <Route
-            path="/"
-            element={
-              <RequireAuth identity={identity}>
-                <HomePage />
-              </RequireAuth>
-            }
-          />
+          <Route path="/" element={<HomePage />} />
           <Route
             path="/movie/:movieId"
-            element={
-              <RequireAuth identity={identity}>
-                <MovieDetailPage identity={identity} profile={profile} />
-              </RequireAuth>
-            }
+            element={<MovieDetailPage identity={identity} profile={profile} />}
           />
           <Route
             path="/profile"

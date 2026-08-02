@@ -9,7 +9,7 @@ export default function Topbar({ identity }) {
           <Link to="/" className="text-xl font-bold text-indigo-600">
             MoviesDB
           </Link>
-          {identity && (
+          {identity ? (
             <div className="flex items-center gap-4">
               <Link
                 to="/profile"
@@ -19,6 +19,13 @@ export default function Topbar({ identity }) {
                 {identity[0]?.toUpperCase()}
               </Link>
             </div>
+          ) : (
+            <Link
+              to="/login"
+              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              Sign In
+            </Link>
           )}
         </div>
       </nav>

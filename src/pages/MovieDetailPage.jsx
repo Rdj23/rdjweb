@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import MovieTrailer from "../components/MovieTrailer";
 import { addEventToCleverTap, updateProfileOnClevertap, generateRandomPrice } from "../utils/cleverTap";
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_KEY || "";
 const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/";
+const PENDING_ACTION_KEY = "pendingMovieAction";
 
 export default function MovieDetailPage({ identity, profile = {} }) {
   const { movieId } = useParams();
+  const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
   const [cast, setCast] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,53 +61,81 @@ export default function MovieDetailPage({ identity, profile = {} }) {
     fetchData();
   }, [movieId]);
 
-  const handleBuyNow = () => {
-    if (!movie) return;
-
-    const isLoggedIn = Boolean(identity);
-    const buyerName = profile.Name || "Guest";
+  // Runs the actual purchase - only ever called once we know `identity` is set,
+  // so it always tracks against the signed-in profile, never "Guest".
+  const performBuyNow = (currentMovie) => {
+    const buyerName = profile.Name || "";
     const buyerEmail = profile.Email || identity || "";
     const buyerPhone = profile.Phone || "";
 
-    // No PII form here: reuse whatever identity/profile was already
-    // established at login. If the user is logged out (no identity yet),
-    // this is their first identification -> onUserLogin. If they're
-    // already logged in, just update the existing profile -> profile.push.
-    updateProfileOnClevertap(
-      {
-        Name: buyerName,
-        Email: buyerEmail,
-        Phone: buyerPhone,
-      },
-      !isLoggedIn
-    );
+    // Identity/profile already established at login - just keep it in sync.
+    updateProfileOnClevertap({
+      Name: buyerName,
+      Email: buyerEmail,
+      Phone: buyerPhone,
+    });
 
-    // Fire the Charged event with a per-title random amount
+    const amount = generateRandomPrice(currentMovie.id);
     addEventToCleverTap("Charged", {
-      "Movie Title": movie.title,
-      "Movie ID": movie.id,
-      "Amount": price,
+      "Movie Title": currentMovie.title,
+      "Movie ID": currentMovie.id,
+      "Amount": amount,
       "Currency": "INR",
       "Name": buyerName,
       "Email": buyerEmail,
       "Phone": buyerPhone,
     });
 
-    alert(`Thank you ${buyerName}! Your purchase for '${movie.title}' is confirmed for ₹${price}.`);
+    alert(`Thank you ${buyerName}! Your purchase for '${currentMovie.title}' is confirmed for ₹${amount}.`);
   };
 
-  const addToWatchlist = () => {
-    if (!movie) return;
+  const performAddToWatchlist = (currentMovie) => {
     addEventToCleverTap("Added to Watchlist", {
-      "Movie Title": movie.title,
+      "Movie Title": currentMovie.title,
     });
     window.clevertap.profile.push({
       Site: {
-        watchlist: { $add: movie.title },
+        watchlist: { $add: currentMovie.title },
       },
     });
-    alert(`'${movie.title}' added to your watchlist!`);
+    alert(`'${currentMovie.title}' added to your watchlist!`);
   };
+
+  // If the user isn't signed in yet, park the intended action and send them
+  // to sign in/up first; once they're back here as an identified user, the
+  // effect below resumes it automatically so the event lands on the right profile.
+  const requireAuth = (action, currentMovie) => {
+    if (!identity) {
+      sessionStorage.setItem(
+        PENDING_ACTION_KEY,
+        JSON.stringify({ movieId: currentMovie.id, action })
+      );
+      navigate("/login", { state: { from: `/movie/${currentMovie.id}` } });
+      return;
+    }
+    action === "buy" ? performBuyNow(currentMovie) : performAddToWatchlist(currentMovie);
+  };
+
+  const handleBuyNow = () => movie && requireAuth("buy", movie);
+  const addToWatchlist = () => movie && requireAuth("watchlist", movie);
+
+  // Resume a pending buy/watchlist action once the user is signed in and
+  // we're back on the movie they were trying to act on.
+  useEffect(() => {
+    if (!identity || !movie) return;
+    const raw = sessionStorage.getItem(PENDING_ACTION_KEY);
+    if (!raw) return;
+    try {
+      const pending = JSON.parse(raw);
+      if (pending.movieId === movie.id) {
+        sessionStorage.removeItem(PENDING_ACTION_KEY);
+        pending.action === "buy" ? performBuyNow(movie) : performAddToWatchlist(movie);
+      }
+    } catch {
+      sessionStorage.removeItem(PENDING_ACTION_KEY);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity, movie]);
 
   if (loading)
     return <div className="text-center text-gray-500">Loading details...</div>;
