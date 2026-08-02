@@ -20,6 +20,29 @@ export const encryptKeyWithXor = (mobileNumber) => {
   return encrypted;
 };
 
+// Seeded PRNG so the same content always resolves to the same price,
+// while different content gets different prices (plain Math.random()
+// would just re-roll on every render/navigation).
+const seededRandom = (seed) => {
+  let state = 0;
+  const seedStr = String(seed ?? "");
+  for (let i = 0; i < seedStr.length; i++) {
+    state = (state * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+};
+
+// Generate a Random Price for a Piece of Content (Movie/Series)
+// so the "Charged" event amount varies per title instead of a fixed value.
+export const generateRandomPrice = (seed, { min = 99, max = 799, step = 10 } = {}) => {
+  const rand = seededRandom(seed)();
+  const steps = Math.floor((max - min) / step);
+  return min + Math.floor(rand * (steps + 1)) * step;
+};
+
 // Add Event to CleverTap
 export const addEventToCleverTap = (cleverTapEventName, cleverTapEventData) => {
   if (typeof window !== "undefined" && window.clevertap && cleverTapEventName && cleverTapEventData) {
