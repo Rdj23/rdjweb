@@ -45,7 +45,7 @@ export default function MovieDetailPage({ identity, profile = {} }) {
         setMovie(detailData);
         setCast(creditsData.cast.slice(0, 10));
 
-        addEventToCleverTap("Movie Viewed", {
+        addEventToCleverTap("Content Viewed", {
           "Movie ID": detailData.id,
           "Movie Title": detailData.title || detailData.name,
           "Type": contentType,
