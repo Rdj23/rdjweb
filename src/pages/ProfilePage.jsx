@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Button from "../components/ui/Button";
 import Field from "../components/ui/Field";
+import Select from "../components/ui/Select";
 import Badge from "../components/ui/Badge";
 import { IconLogout, IconTicket, IconHeart, IconCheck } from "../components/ui/Icons";
 import { useAuth } from "../context/auth-context";
@@ -146,20 +147,16 @@ export default function ProfilePage() {
 
         <div>
           <span className="mb-2 block text-sm font-medium text-ink-200">Preferred city</span>
-          <select
+          <Select
+            fullWidth
+            label="Preferred city"
             value={city}
-            onChange={(e) => {
-              const next = CITIES.find((c) => c.id === e.target.value);
+            onChange={(nextId) => {
+              const next = CITIES.find((c) => c.id === nextId);
               if (next) setCity(next.id, next.name);
             }}
-            className="w-full rounded-xl border border-ink-750 bg-ink-900 px-3.5 py-2.5 text-sm text-ink-100 focus:border-brand-400/60"
-          >
-            {CITIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            options={CITIES.map((c) => ({ value: c.id, label: c.name }))}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-1">

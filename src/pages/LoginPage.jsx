@@ -2,11 +2,18 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
 import Field from "../components/ui/Field";
+import Select from "../components/ui/Select";
 import { IconTicket } from "../components/ui/Icons";
 import { useAuth } from "../context/auth-context";
 import { trackPageView } from "../lib/analytics";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const IDENTITY_TYPES = [
+  { value: "mobile", label: "Mobile number", detail: "The number you signed up with" },
+  { value: "email", label: "Email / identity", detail: "Your email or CleverTap identity" },
+  { value: "crn", label: "CRN number", detail: "Customer reference number" },
+];
 
 const identityPlaceholders = {
   mobile: "10-digit mobile number",
@@ -142,21 +149,19 @@ export default function LoginPage() {
             </form>
           ) : (
             <form onSubmit={handleSignin} className="space-y-4" noValidate>
-              <label className="block">
+              <div>
                 <span className="mb-1.5 block text-sm font-medium text-ink-200">Sign in with</span>
-                <select
+                <Select
+                  fullWidth
+                  label="Sign in with"
                   value={identityType}
-                  onChange={(e) => {
-                    setIdentityType(e.target.value);
+                  onChange={(next) => {
+                    setIdentityType(next);
                     setIdentity("");
                   }}
-                  className="w-full rounded-xl border border-ink-750 bg-ink-900 px-3.5 py-2.5 text-sm text-ink-100 focus:border-brand-400/60"
-                >
-                  <option value="mobile">Mobile number</option>
-                  <option value="email">Email / identity</option>
-                  <option value="crn">CRN number</option>
-                </select>
-              </label>
+                  options={IDENTITY_TYPES}
+                />
+              </div>
 
               <Field
                 label="Your identity"

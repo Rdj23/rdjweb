@@ -42,17 +42,11 @@ export default function ShowtimesPage() {
 
   useEffect(() => {
     if (!item?.id) return;
-    trackShowtimesViewed({
-      item,
-      mediaType: "movie",
-      cityName: cityName(city),
-      dateKey,
-      showCount,
-    });
+    trackShowtimesViewed({ item, mediaType: "movie", cityId: city, dateKey, showCount });
   }, [item, city, dateKey, showCount]);
 
   const handleSelect = (show) => {
-    if (item?.id) trackShowSelected({ item, mediaType: "movie", show });
+    if (item?.id) trackShowSelected({ item, mediaType: "movie", show, cityId: city });
     navigate(`/book/movie/${id}/seats/${show.id}`);
   };
 

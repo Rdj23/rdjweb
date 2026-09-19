@@ -48,3 +48,27 @@ export const formatDateTime = (iso) =>
     hour: "numeric",
     minute: "2-digit",
   });
+
+/**
+ * Combine a date key and a "HH:MM" slot into a real Date.
+ * Sent to CleverTap as a Date object so the showtime becomes a date property
+ * that campaigns can trigger relative to (e.g. remind 2 hours before).
+ */
+export const showDateTime = (dateKey, time) => {
+  const [y, m, d] = String(dateKey).split("-").map(Number);
+  const [hh, mm] = String(time).split(":").map(Number);
+  return new Date(y, m - 1, d, hh, mm, 0, 0);
+};
+
+/** Whole calendar days from today to `target` (0 = today, negative = past). */
+export const daysUntil = (target) => {
+  const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((dayStart(new Date(target)) - dayStart(new Date())) / 86400000);
+};
+
+/** Add `days` to a date and return the result. */
+export const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};

@@ -2,8 +2,9 @@ import React, { useMemo, useState } from "react";
 import { formatTime, formatMoney } from "../../lib/format";
 import { FORMATS, LANGUAGES } from "../../lib/venues";
 import { buildSeatMap, seatAvailabilityLabel } from "../../lib/shows";
-import { IconPin, IconChevronDown } from "../ui/Icons";
+import { IconPin } from "../ui/Icons";
 import Badge from "../ui/Badge";
+import Select from "../ui/Select";
 import { EmptyState } from "../ui/States";
 
 const toneClasses = {
@@ -147,25 +148,3 @@ function Legend({ className, label }) {
   );
 }
 
-function Select({ label, value, onChange, options }) {
-  return (
-    <label className="relative">
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none rounded-lg border border-ink-750 bg-ink-850 py-2 pl-3 pr-9 text-sm font-medium text-ink-200 transition-colors hover:border-ink-600 focus:border-brand-400/60"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <IconChevronDown
-        size={15}
-        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-400"
-      />
-    </label>
-  );
-}

@@ -9,7 +9,7 @@ import { useTmdb } from "../hooks/useTmdb";
 import { useScrollTop } from "../hooks/useScrollTop";
 import { getTitleDetail, posterUrl, titleOf, releaseDateOf, genreNames } from "../lib/tmdb";
 import { formatDateLabel, formatTime, formatMoney, yearOf } from "../lib/format";
-import { resolveShow, buildSeatMap, MAX_SEATS_PER_BOOKING } from "../lib/shows";
+import { resolveShow, buildSeatMap, toCinemaBlock, MAX_SEATS_PER_BOOKING } from "../lib/shows";
 import { SEAT_TIERS } from "../lib/venues";
 import { cinemaTotals } from "../lib/pricing";
 import { useBooking } from "../context/booking-context";
@@ -85,7 +85,8 @@ export default function SeatsPage() {
 
   const proceed = () => {
     if (!seats.length) return;
-    if (item?.id) trackSeatsSelected({ item, mediaType: "movie", show, seats, total: totals.total });
+    if (item?.id)
+      trackSeatsSelected({ item, mediaType: "movie", show, cityId: city, seats, total: totals.total });
 
     setDraft({
       kind: "cinema",
@@ -97,19 +98,7 @@ export default function SeatsPage() {
         year: item ? yearOf(releaseDateOf(item)) : "",
         genres: item ? genreNames(item).slice(0, 3) : [],
       },
-      cinema: {
-        showId: show.id,
-        cinemaId: show.cinema.id,
-        cinemaName: `${show.cinema.brand} ${show.cinema.name}`,
-        area: show.cinema.area,
-        city,
-        dateKey: show.dateKey,
-        time: show.time,
-        format: show.format.label,
-        language: show.language,
-        screen: show.screen,
-        seats,
-      },
+      cinema: toCinemaBlock(show, city, seats),
       amount: totals,
     });
     navigate("/checkout");

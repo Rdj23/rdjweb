@@ -13,7 +13,13 @@ import { useBooking } from "../context/booking-context";
 import { useTmdb } from "../hooks/useTmdb";
 import { useScrollTop } from "../hooks/useScrollTop";
 import { getTitleDetail } from "../lib/tmdb";
-import { trackCheckoutStarted, trackPaymentMethodSelected, trackCharged, trackPageView } from "../lib/analytics";
+import {
+  trackCheckoutStarted,
+  trackPaymentMethodSelected,
+  trackBookingConfirmed,
+  trackCharged,
+  trackPageView,
+} from "../lib/analytics";
 
 const PROCESSING_MS = 1200;
 
@@ -43,16 +49,11 @@ export default function CheckoutPage() {
     { enabled: Boolean(draft?.title?.id) }
   );
 
+  // Fired once the draft is in hand - it carries everything the event needs,
+  // so this no longer waits on the TMDB detail request.
   useEffect(() => {
-    if (draft && item?.id) {
-      trackCheckoutStarted({
-        item,
-        mediaType: draft.title.mediaType,
-        draft,
-        totals: draft.amount,
-      });
-    }
-  }, [draft, item]);
+    if (draft) trackCheckoutStarted({ draft });
+  }, [draft]);
 
   const selectedMethod = useMemo(
     () => PAYMENT_METHODS.find((m) => m.key === method) || PAYMENT_METHODS[0],
@@ -84,6 +85,9 @@ export default function CheckoutPage() {
         },
       });
 
+      // The booking event carries the showtime as a date property for
+      // reminder campaigns; Charged stays the revenue event.
+      trackBookingConfirmed(booking);
       trackCharged(booking);
 
       // Keep the CleverTap profile in step with what the buyer typed here.
