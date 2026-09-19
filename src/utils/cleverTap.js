@@ -1,4 +1,10 @@
-// CleverTap Payload Properties Mapping
+// CleverTap web SDK bridge.
+//
+// The SDK is bootstrapped in index.html and may still be loading when React
+// mounts, so every call guards on `window.clevertap`. The SDK's own array
+// shims queue calls made before the script lands, which is why pushing onto
+// them early is safe.
+
 export const cleverTapPayloadProperties = {
   mobile: "phone",
   crn: "crn",
@@ -6,93 +12,111 @@ export const cleverTapPayloadProperties = {
   dob: "DOB",
 };
 
-// Simple XOR Encryption for Mobile Number
+/** Simple XOR obfuscation for mobile-number-derived identities. */
 export const encryptKeyWithXor = (mobileNumber) => {
   if (!mobileNumber) return "";
-
-  const xorKey = 42; // Simple XOR key, you can change this
+  const xorKey = 42;
   let encrypted = "";
-
-  for (let i = 0; i < mobileNumber.toString().length; i++) {
-    encrypted += String.fromCharCode(mobileNumber.charCodeAt(i) ^ xorKey);
+  const str = mobileNumber.toString();
+  for (let i = 0; i < str.length; i++) {
+    encrypted += String.fromCharCode(str.charCodeAt(i) ^ xorKey);
   }
-
   return encrypted;
 };
 
-// Seeded PRNG so the same content always resolves to the same price,
-// while different content gets different prices (plain Math.random()
-// would just re-roll on every render/navigation).
-const seededRandom = (seed) => {
-  let state = 0;
-  const seedStr = String(seed ?? "");
-  for (let i = 0; i < seedStr.length; i++) {
-    state = (state * 31 + seedStr.charCodeAt(i)) >>> 0;
-  }
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
-};
+const sdk = () => (typeof window !== "undefined" ? window.clevertap : undefined);
 
-// Generate a Random Price for a Piece of Content (Movie/Series)
-// so the "Charged" event amount varies per title instead of a fixed value.
-export const generateRandomPrice = (seed, { min = 99, max = 799, step = 10 } = {}) => {
-  const rand = seededRandom(seed)();
-  const steps = Math.floor((max - min) / step);
-  return min + Math.floor(rand * (steps + 1)) * step;
-};
+/** Fire a custom event. Undefined/null properties are dropped. */
+export const addEventToCleverTap = (eventName, eventData = {}) => {
+  const ct = sdk();
+  if (!ct || !eventName) return;
 
-// Add Event to CleverTap
-export const addEventToCleverTap = (cleverTapEventName, cleverTapEventData) => {
-  if (typeof window !== "undefined" && window.clevertap && cleverTapEventName && cleverTapEventData) {
-    window.clevertap.event.push(cleverTapEventName, cleverTapEventData);
+  const payload = Object.fromEntries(
+    Object.entries(eventData).filter(([, v]) => v !== undefined && v !== null && v !== "")
+  );
+
+  try {
+    ct.event.push(eventName, payload);
+  } catch (error) {
+    console.warn(`[clevertap] "${eventName}" failed`, error);
   }
 };
 
-// Update Profile on CleverTap
-export const updateProfileOnClevertap = (updateEventPayload, fireInitialEvent = false) => {
-  if (typeof window !== "undefined" && window.clevertap && updateEventPayload) {
-    // Define a Variable and Make Local Copy of Incoming Payload
-    let payloadData = { ...updateEventPayload };
-
-    Object.keys(updateEventPayload).forEach((key) => {
-      if (key in cleverTapPayloadProperties) {
-        if (cleverTapPayloadProperties[key] === cleverTapPayloadProperties.mobile) {
-          // Insert "Identity" Key into the Payload
-          const finalKey = updateEventPayload[key];
-          const encryptedMobileNumber = encryptKeyWithXor(finalKey);
-          payloadData.Identity = encryptedMobileNumber;
-          payloadData[cleverTapPayloadProperties.mobile] = `+910${encryptedMobileNumber}`;
-        } else if (cleverTapPayloadProperties[key] === cleverTapPayloadProperties.crn) {
-          payloadData.Identity = updateEventPayload[key];
-          payloadData.crn = updateEventPayload[key];
-        } else if (cleverTapPayloadProperties[key] === cleverTapPayloadProperties.gender) {
-          // Send "M" or "F" as Payload Values for Male / Female
-          payloadData[cleverTapPayloadProperties.gender] = updateEventPayload[key].charAt(0);
-        } else if (cleverTapPayloadProperties[key] === cleverTapPayloadProperties.dob) {
-          // Convert the String Based Date into the Javascript Date Object
-          payloadData[cleverTapPayloadProperties.dob] = new Date(updateEventPayload[key]);
-        } else {
-          // Handle any other Keys appearing in the ENUM where Special Handling is Not Required
-          payloadData[cleverTapPayloadProperties[key]] = updateEventPayload[key];
-        }
-
-        // Remove the Duplicate Key from the Main Payload
-        delete payloadData[key];
-      }
+/**
+ * Fire the special `Charged` event.
+ * CleverTap expects `Amount`, `Charged ID` and an `Items` array on this event,
+ * which is what powers revenue reporting - it is not a plain custom event.
+ */
+export const addChargedEventToCleverTap = ({ amount, chargedId, items = [], ...rest }) => {
+  const ct = sdk();
+  if (!ct) return;
+  try {
+    ct.event.push("Charged", {
+      Amount: amount,
+      "Charged ID": chargedId,
+      ...rest,
+      Items: items.slice(0, 50),
     });
+  } catch (error) {
+    console.warn("[clevertap] Charged failed", error);
+  }
+};
 
-    // Restructure the Payload before Sending to CleverTap
-    payloadData = { Site: { ...payloadData } };
+/** Push a raw profile payload, e.g. { Site: { watchlist: { $add: "Dune" } } }. */
+export const pushProfileCommand = (payload) => {
+  const ct = sdk();
+  if (!ct || !payload) return;
+  try {
+    ct.profile.push(payload);
+  } catch (error) {
+    console.warn("[clevertap] profile push failed", error);
+  }
+};
 
-    // Fire the onUserLogin method if Event generated from First Page
-    if (fireInitialEvent) {
-      window.clevertap.onUserLogin.push(payloadData);
-      return;
+/**
+ * Normalise and send a profile update.
+ * @param {object} updateEventPayload profile fields, using either CleverTap's
+ *   own keys (Name, Email, Phone) or the aliases in cleverTapPayloadProperties
+ * @param {boolean} fireInitialEvent  true on login/signup, so the SDK creates
+ *   or merges the identity rather than only updating the current one
+ */
+export const updateProfileOnClevertap = (updateEventPayload, fireInitialEvent = false) => {
+  const ct = sdk();
+  if (!ct || !updateEventPayload) return;
+
+  let payloadData = { ...updateEventPayload };
+
+  Object.keys(updateEventPayload).forEach((key) => {
+    if (!(key in cleverTapPayloadProperties)) return;
+    const mapped = cleverTapPayloadProperties[key];
+
+    if (mapped === cleverTapPayloadProperties.mobile) {
+      const encryptedMobileNumber = encryptKeyWithXor(updateEventPayload[key]);
+      payloadData.Identity = encryptedMobileNumber;
+      payloadData[mapped] = `+910${encryptedMobileNumber}`;
+    } else if (mapped === cleverTapPayloadProperties.crn) {
+      payloadData.Identity = updateEventPayload[key];
+      payloadData.crn = updateEventPayload[key];
+    } else if (mapped === cleverTapPayloadProperties.gender) {
+      payloadData[mapped] = updateEventPayload[key].charAt(0);
+    } else if (mapped === cleverTapPayloadProperties.dob) {
+      payloadData[mapped] = new Date(updateEventPayload[key]);
+    } else {
+      payloadData[mapped] = updateEventPayload[key];
     }
 
-    // Fire the profile push method if Event generated from Subsequent Pages
-    window.clevertap.profile.push(payloadData);
+    delete payloadData[key];
+  });
+
+  payloadData = { Site: { ...payloadData } };
+
+  try {
+    if (fireInitialEvent) {
+      ct.onUserLogin.push(payloadData);
+      return;
+    }
+    ct.profile.push(payloadData);
+  } catch (error) {
+    console.warn("[clevertap] profile update failed", error);
   }
 };
