@@ -4,6 +4,10 @@
 // through components) means the funnel stays auditable: you can read the whole
 // booking journey top to bottom, and property names can't drift between the
 // page that fires an event and the dashboard that charts it.
+//
+// Dates are sent as real `Date` objects, never strings. The CleverTap SDK turns
+// those into date properties, which is what lets a campaign trigger relative to
+// them - "remind me the day before my show" only works on a date property.
 
 import {
   addEventToCleverTap,
@@ -11,9 +15,32 @@ import {
   pushProfileCommand,
 } from "../utils/cleverTap";
 import { titleOf, releaseDateOf, genreNames, imageUrl } from "./tmdb";
-import { formatTime } from "./format";
+import { formatTime, showDateTime, daysUntil, addDays } from "./format";
+import { toCinemaBlock } from "./shows";
+import { cityName } from "./venues";
 
-/** Shared descriptor so every content event carries the same title fields. */
+/**
+ * Analytics must never take down a page.
+ *
+ * A mismatch between a payload builder and the object it reads used to throw
+ * straight through the render that called it; wrapping each tracker keeps a
+ * reporting bug to a console warning.
+ */
+const track = (name, fn) =>
+  function trackSafely(...args) {
+    try {
+      return fn(...args);
+    } catch (error) {
+      console.warn(`[analytics] ${name} failed`, error);
+      return undefined;
+    }
+  };
+
+/* ------------------------------------------------------------------ */
+/* Shared property blocks                                              */
+/* ------------------------------------------------------------------ */
+
+/** Title descriptor, identical on every content-related event. */
 const titleProps = (item, mediaType) => ({
   "Content ID": item?.id,
   "Content Title": titleOf(item),
@@ -25,92 +52,202 @@ const titleProps = (item, mediaType) => ({
   backdrop_url: imageUrl(item?.backdrop_path, "w780") || undefined,
 });
 
-const showProps = (show) => ({
-  "Cinema Name": `${show.cinema.brand} ${show.cinema.name}`,
-  "Cinema Area": show.cinema.area,
-  "Show Date": show.dateKey,
-  "Show Time": formatTime(show.time),
-  Format: show.format.label,
-  Language: show.language,
-  Screen: show.screen,
+/** Title descriptor rebuilt from a stored booking, which has no TMDB payload. */
+const storedTitleProps = (title) => ({
+  "Content ID": title.id,
+  "Content Title": title.name,
+  "Content Type": title.mediaType === "tv" ? "series" : "movie",
+  Genre: (title.genres || []).join(", "),
+  "Release Year": title.year || undefined,
+  poster_url: imageUrl(title.posterPath, "w342") || undefined,
 });
 
-export const trackPageView = (pageName, extra = {}) =>
-  addEventToCleverTap("Page Viewed", { "Page Name": pageName, ...extra });
+/**
+ * Showtime descriptor. Takes the flattened cinema block that drafts and
+ * bookings store, so live and stored paths report identical properties.
+ */
+const cinemaProps = (cinema) => {
+  const startsAt = showDateTime(cinema.dateKey, cinema.time);
+  return {
+    "Cinema Name": cinema.cinemaName,
+    "Cinema Brand": cinema.cinemaBrand,
+    "Cinema Area": cinema.area,
+    City: cityName(cinema.city),
+    Screen: cinema.screen,
+    Format: cinema.format,
+    Language: cinema.language,
+    "Show Date": cinema.dateKey,
+    "Show Time": formatTime(cinema.time),
+    // Date property: campaigns trigger relative to this.
+    "Show DateTime": startsAt,
+    "Days Until Show": daysUntil(startsAt),
+  };
+};
 
-export const trackContentViewed = (item, mediaType) =>
-  addEventToCleverTap("Content Viewed", titleProps(item, mediaType));
+const seatProps = (seats = []) => ({
+  Seats: seats.map((s) => s.id).join(", "),
+  "Seat Count": seats.length,
+  "Seat Types": [...new Set(seats.map((s) => s.tierLabel || s.tierKey))].join(", "),
+});
 
-export const trackSearch = (query, mediaType, resultCount) =>
+/* ------------------------------------------------------------------ */
+/* Discovery                                                           */
+/* ------------------------------------------------------------------ */
+
+export const trackPageView = track("trackPageView", (pageName, extra = {}) =>
+  addEventToCleverTap("Page Viewed", { "Page Name": pageName, ...extra })
+);
+
+export const trackContentViewed = track("trackContentViewed", (item, mediaType) =>
+  addEventToCleverTap("Content Viewed", titleProps(item, mediaType))
+);
+
+export const trackSearch = track("trackSearch", (query, mediaType, resultCount) =>
   addEventToCleverTap("Search Performed", {
     "Search Query": query,
     "Content Type": mediaType === "tv" ? "series" : "movie",
     Results: resultCount,
-  });
+  })
+);
 
-export const trackTrailerPlayed = (item, mediaType) =>
-  addEventToCleverTap("Trailer Played", titleProps(item, mediaType));
+export const trackTrailerPlayed = track("trackTrailerPlayed", (item, mediaType) =>
+  addEventToCleverTap("Trailer Played", titleProps(item, mediaType))
+);
 
-export const trackWatchlistAdded = (item, mediaType) => {
+export const trackWatchlistAdded = track("trackWatchlistAdded", (item, mediaType) => {
   addEventToCleverTap("Added to Watchlist", titleProps(item, mediaType));
   pushProfileCommand({ Site: { watchlist: { $add: titleOf(item) } } });
-};
+});
 
-export const trackWatchlistRemoved = (item, mediaType) => {
+export const trackWatchlistRemoved = track("trackWatchlistRemoved", (item, mediaType) => {
   addEventToCleverTap("Removed from Watchlist", titleProps(item, mediaType));
   pushProfileCommand({ Site: { watchlist: { $remove: titleOf(item) } } });
-};
+});
 
-/* ---------------------------- booking funnel ---------------------------- */
+export const trackCityChanged = track("trackCityChanged", (city) =>
+  addEventToCleverTap("City Changed", { City: city })
+);
 
-export const trackShowtimesViewed = ({ item, mediaType, cityName, dateKey, showCount }) =>
-  addEventToCleverTap("Showtimes Viewed", {
-    ...titleProps(item, mediaType),
-    City: cityName,
-    "Show Date": dateKey,
-    "Shows Available": showCount,
-  });
+/* ------------------------------------------------------------------ */
+/* Booking funnel                                                      */
+/* ------------------------------------------------------------------ */
 
-export const trackShowSelected = ({ item, mediaType, show }) =>
+export const trackShowtimesViewed = track(
+  "trackShowtimesViewed",
+  ({ item, mediaType, cityId, dateKey, showCount }) =>
+    addEventToCleverTap("Showtimes Viewed", {
+      ...titleProps(item, mediaType),
+      City: cityName(cityId),
+      "Show Date": dateKey,
+      "Shows Available": showCount,
+    })
+);
+
+export const trackShowSelected = track("trackShowSelected", ({ item, mediaType, show, cityId }) =>
   addEventToCleverTap("Showtime Selected", {
     ...titleProps(item, mediaType),
-    ...showProps(show),
+    ...cinemaProps(toCinemaBlock(show, cityId)),
     "From Price": show.fromPrice,
-  });
+  })
+);
 
-export const trackSeatsSelected = ({ item, mediaType, show, seats, total }) =>
-  addEventToCleverTap("Seats Selected", {
-    ...titleProps(item, mediaType),
-    ...showProps(show),
-    Seats: seats.map((s) => s.id).join(", "),
-    "Seat Count": seats.length,
-    "Seat Types": [...new Set(seats.map((s) => s.tierKey))].join(", "),
-    "Ticket Total": total,
-  });
+export const trackSeatsSelected = track(
+  "trackSeatsSelected",
+  ({ item, mediaType, show, cityId, seats, total }) =>
+    addEventToCleverTap("Seats Selected", {
+      ...titleProps(item, mediaType),
+      ...cinemaProps(toCinemaBlock(show, cityId)),
+      ...seatProps(seats),
+      "Ticket Total": total,
+    })
+);
 
-export const trackPassSelected = ({ item, option, quality }) =>
+export const trackPassSelected = track("trackPassSelected", ({ item, option, quality }) =>
   addEventToCleverTap("Pass Selected", {
     ...titleProps(item, "tv"),
     "Pass Type": option.kindLabel,
     "Pass Label": option.label,
     Quality: quality.label,
     Price: option.price,
-  });
+  })
+);
 
-export const trackCheckoutStarted = ({ item, mediaType, draft, totals }) =>
+/** Reads the draft straight through, so it can't drift from what was selected. */
+export const trackCheckoutStarted = track("trackCheckoutStarted", ({ draft }) => {
+  const isCinema = draft.kind === "cinema";
   addEventToCleverTap("Checkout Started", {
-    ...titleProps(item, mediaType),
-    "Booking Kind": draft.kind === "cinema" ? "tickets" : "streaming pass",
-    Quantity: draft.kind === "cinema" ? draft.seats.length : 1,
-    "Order Value": totals.total,
-    ...(draft.kind === "cinema" ? showProps(draft.show) : { "Pass Label": draft.pass.label }),
+    ...storedTitleProps(draft.title),
+    "Booking Kind": isCinema ? "tickets" : "streaming pass",
+    Quantity: isCinema ? draft.cinema.seats.length : 1,
+    "Order Value": draft.amount.total,
+    ...(isCinema
+      ? { ...cinemaProps(draft.cinema), ...seatProps(draft.cinema.seats) }
+      : {
+          "Pass Type": draft.pass.kindLabel,
+          "Pass Label": draft.pass.label,
+          Quality: draft.pass.qualityLabel,
+        }),
   });
+});
 
-export const trackPaymentMethodSelected = (method) =>
-  addEventToCleverTap("Payment Method Selected", { Method: method.label });
+export const trackPaymentMethodSelected = track("trackPaymentMethodSelected", (method) =>
+  addEventToCleverTap("Payment Method Selected", { Method: method.label })
+);
+
+/* ------------------------------------------------------------------ */
+/* Confirmation                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The booking event, split by content kind so each can be targeted directly:
+ *   - "Movie Ticket Booked" carries the full showtime, including `Show DateTime`
+ *     as a date property - this is what a pre-show reminder campaign triggers on.
+ *   - "Series Pass Purchased" carries `Pass Expires On`, for renewal nudges.
+ *
+ * `Charged` is fired alongside this and stays the revenue event.
+ */
+export const trackBookingConfirmed = track("trackBookingConfirmed", (booking) => {
+  const common = {
+    "Booking ID": booking.id,
+    ...storedTitleProps(booking.title),
+    "Booked On": new Date(booking.createdAt),
+    Amount: booking.amount.total,
+    Currency: booking.amount.currency,
+    "Payment Mode": booking.payment.method,
+    "Customer Name": booking.contact.name,
+    "Customer Email": booking.contact.email,
+    "Customer Phone": booking.contact.phone || undefined,
+  };
+
+  if (booking.kind === "cinema") {
+    addEventToCleverTap("Movie Ticket Booked", {
+      ...common,
+      ...cinemaProps(booking.cinema),
+      ...seatProps(booking.cinema.seats),
+      "Ticket Amount": booking.amount.subtotal,
+      "Convenience Fee": booking.amount.fees,
+      Tax: booking.amount.tax,
+    });
+    return;
+  }
+
+  const purchasedAt = new Date(booking.createdAt);
+  addEventToCleverTap("Series Pass Purchased", {
+    ...common,
+    "Pass Type": booking.pass.kindLabel,
+    "Pass Label": booking.pass.label,
+    Season: booking.pass.seasonNumber ?? undefined,
+    Episode: booking.pass.episodeNumber ?? undefined,
+    "Episode Name": booking.pass.episodeName || undefined,
+    Quality: booking.pass.qualityLabel,
+    "Validity Days": booking.pass.validityDays,
+    // Date property: drives "your pass expires soon" campaigns.
+    "Pass Expires On": addDays(purchasedAt, booking.pass.validityDays),
+  });
+});
 
 /** The revenue event - `Charged` is special-cased by CleverTap. */
-export const trackCharged = (booking) => {
+export const trackCharged = track("trackCharged", (booking) => {
   const isCinema = booking.kind === "cinema";
 
   const items = isCinema
@@ -143,28 +280,27 @@ export const trackCharged = (booking) => {
     "Payment Mode": booking.payment.method,
     Currency: booking.amount.currency,
     "Booking Kind": isCinema ? "tickets" : "streaming pass",
-    "Content Title": booking.title.name,
-    "Content ID": booking.title.id,
+    ...storedTitleProps(booking.title),
     ...(isCinema
-      ? {
-          "Cinema Name": booking.cinema.cinemaName,
-          "Show Date": booking.cinema.dateKey,
-          "Show Time": formatTime(booking.cinema.time),
-          "Seat Count": booking.cinema.seats.length,
-        }
-      : {}),
+      ? { ...cinemaProps(booking.cinema), ...seatProps(booking.cinema.seats) }
+      : {
+          "Pass Type": booking.pass.kindLabel,
+          "Pass Label": booking.pass.label,
+          Quality: booking.pass.qualityLabel,
+          "Pass Expires On": addDays(new Date(booking.createdAt), booking.pass.validityDays),
+        }),
   });
-};
+});
 
-export const trackBookingCancelled = (booking) =>
+export const trackBookingCancelled = track("trackBookingCancelled", (booking) =>
   addEventToCleverTap("Booking Cancelled", {
     "Booking ID": booking.id,
-    "Content Title": booking.title.name,
+    ...storedTitleProps(booking.title),
     "Booking Kind": booking.kind === "cinema" ? "tickets" : "streaming pass",
     "Refund Amount": booking.amount.total,
+    "Cancelled On": new Date(booking.cancelledAt || Date.now()),
     ...(booking.kind === "cinema"
-      ? { "Show Date": booking.cinema.dateKey, Cinema: booking.cinema.cinemaName }
-      : {}),
-  });
-
-export const trackCityChanged = (city) => addEventToCleverTap("City Changed", { City: city });
+      ? { ...cinemaProps(booking.cinema), ...seatProps(booking.cinema.seats) }
+      : { "Pass Type": booking.pass.kindLabel, "Pass Label": booking.pass.label }),
+  })
+);

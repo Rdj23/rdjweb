@@ -77,13 +77,33 @@ read top to bottom:
 
 `Page Viewed` → `Search Performed` → `Content Viewed` → `Showtimes Viewed` →
 `Showtime Selected` → `Seats Selected` / `Pass Selected` → `Checkout Started` →
-`Payment Method Selected` → `Charged` → `Booking Cancelled`
+`Payment Method Selected` → `Movie Ticket Booked` / `Series Pass Purchased` +
+`Charged` → `Booking Cancelled`
 
 plus `Added to Watchlist`, `Removed from Watchlist`, `Trailer Played`,
 `City Changed` and `UTM_Visited`.
 
 `Charged` is sent with `Amount`, `Charged ID` and an `Items` array (one entry per
 seat, or one per pass), which is what CleverTap's revenue reporting expects.
+
+### Date properties
+
+Dates go out as JavaScript `Date` objects, never strings, so CleverTap stores
+them as date properties that campaigns can trigger relative to:
+
+| Property | On | Use |
+| --- | --- | --- |
+| `Show DateTime` | `Movie Ticket Booked`, `Charged`, `Showtime Selected`, `Seats Selected` | Pre-show reminders ("2 hours before your show") |
+| `Days Until Show` | same | Segment advance bookings vs. same-day |
+| `Pass Expires On` | `Series Pass Purchased`, `Charged` | Renewal nudges before a pass lapses |
+| `Booked On` / `Cancelled On` | booking events | Post-booking journeys |
+
+So a ticket booked four days out carries `Show DateTime` = that show's start and
+`Days Until Show` = 4, which is enough to build a reminder campaign without any
+backend.
+
+Every tracker in `analytics.js` is wrapped so a payload bug logs a warning
+instead of throwing into the render that called it.
 
 ## Notes
 

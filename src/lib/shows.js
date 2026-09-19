@@ -248,3 +248,23 @@ export const seatAvailabilityLabel = (map) => {
   if (ratio <= 0.35) return { label: "Filling fast", tone: "warn" };
   return { label: "Available", tone: "ok" };
 };
+
+/**
+ * Flatten a live show into the shape that drafts, bookings and analytics all
+ * consume. Everything downstream of seat selection reads this one structure,
+ * so the booking flow and the event payloads can't drift apart.
+ */
+export const toCinemaBlock = (show, cityId, seats = []) => ({
+  showId: show.id,
+  cinemaId: show.cinema.id,
+  cinemaName: `${show.cinema.brand} ${show.cinema.name}`,
+  cinemaBrand: show.cinema.brand,
+  area: show.cinema.area,
+  city: cityId,
+  dateKey: show.dateKey,
+  time: show.time,
+  format: show.format.label,
+  language: show.language,
+  screen: show.screen,
+  seats,
+});
