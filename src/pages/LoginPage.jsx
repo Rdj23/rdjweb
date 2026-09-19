@@ -1,165 +1,184 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Button from "../components/ui/Button";
+import Field from "../components/ui/Field";
+import { IconTicket } from "../components/ui/Icons";
+import { useAuth } from "../context/auth-context";
+import { trackPageView } from "../lib/analytics";
 
-export default function LoginPage({ onLogin, onSignup }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const identityPlaceholders = {
+  mobile: "10-digit mobile number",
+  email: "Email or identity",
+  crn: "CRN number",
+};
+
+export default function LoginPage() {
+  const { login, signup } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState("signup");
 
-  // Sign In state (returning users)
   const [identity, setIdentity] = useState("");
   const [identityType, setIdentityType] = useState("mobile");
 
-  // Sign Up state (new users)
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
 
-  const placeholders = {
-    mobile: "Enter 10-digit mobile number",
-    email: "Enter email or identity",
-    crn: "Enter CRN number",
+  // Where to land after authenticating: whatever the user was trying to reach.
+  const destination = location.state?.from || "/";
+
+  useEffect(() => {
+    trackPageView("Login");
+  }, []);
+
+  const signupValid = name.trim().length > 1 && EMAIL_RE.test(email.trim()) && /^\d{10}$/.test(mobile);
+  const signinValid = identity.trim().length > 2;
+
+  const handleSignup = (e) => {
+    e.preventDefault();
+    if (!signupValid) return;
+    signup({ name: name.trim(), email: email.trim(), mobile });
+    navigate(destination, { replace: true });
   };
 
-  function handleLogin(e) {
+  const handleSignin = (e) => {
     e.preventDefault();
-    if (!identity) return alert(`Enter ${identityType}`);
-    onLogin(identity.toLowerCase().trim());
-  }
-
-  const isSignupValid =
-    name.trim() !== "" &&
-    email.trim() !== "" &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-    /^\d{10}$/.test(mobile);
-
-  function handleSignup(e) {
-    e.preventDefault();
-    if (!isSignupValid) return;
-    onSignup({ name: name.trim(), email: email.trim(), mobile });
-  }
+    if (!signinValid) return;
+    login(identity);
+    navigate(destination, { replace: true });
+  };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded shadow">
-      <div className="flex mb-6 border-b">
-        <button
-          type="button"
-          onClick={() => setMode("signup")}
-          className={`flex-1 pb-2 text-sm font-semibold border-b-2 transition-colors ${
-            mode === "signup"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          Sign Up
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("signin")}
-          className={`flex-1 pb-2 text-sm font-semibold border-b-2 transition-colors ${
-            mode === "signin"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          Sign In
-        </button>
+    <div className="mx-auto max-w-md space-y-6 py-4">
+      <div className="text-center">
+        <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-400 text-ink-950">
+          <IconTicket size={24} />
+        </span>
+        <h1 className="text-2xl font-black text-white">
+          {mode === "signup" ? "Create your account" : "Welcome back"}
+        </h1>
+        <p className="mt-1 text-sm text-ink-400">
+          {destination === "/"
+            ? "Sign in to book tickets, buy passes and keep a watchlist."
+            : "Sign in to continue with your booking."}
+        </p>
       </div>
 
-      {mode === "signup" ? (
-        <form onSubmit={handleSignup} className="space-y-4">
-          <h2 className="text-xl font-semibold">Create your account</h2>
+      <div className="surface overflow-hidden">
+        <div className="grid grid-cols-2">
+          {[
+            { key: "signup", label: "Sign up" },
+            { key: "signin", label: "Sign in" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setMode(tab.key)}
+              aria-pressed={mode === tab.key}
+              className={`border-b-2 py-3 text-sm font-semibold transition-colors ${
+                mode === tab.key
+                  ? "border-brand-400 bg-brand-400/5 text-brand-300"
+                  : "border-transparent text-ink-400 hover:text-ink-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your full name"
-              className="w-full border px-3 py-2 rounded"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full border px-3 py-2 rounded"
-              required
-            />
-            {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
-              <p className="text-red-500 text-xs mt-1">Enter a valid email address</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mobile Number <span className="text-red-500">*</span>
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 border border-r-0 rounded-l bg-gray-50 text-gray-500 text-sm">
-                +91
-              </span>
-              <input
-                type="tel"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                placeholder="10-digit mobile number"
-                className="w-full border px-3 py-2 rounded-r"
+        <div className="p-5">
+          {mode === "signup" ? (
+            <form onSubmit={handleSignup} className="space-y-4" noValidate>
+              <Field
+                label="Full name"
+                value={name}
+                onChange={setName}
+                placeholder="Your name"
+                autoComplete="name"
                 required
               />
-            </div>
-            {mobile && !/^\d{10}$/.test(mobile) && (
-              <p className="text-red-500 text-xs mt-1">Enter a valid 10-digit mobile number</p>
-            )}
-          </div>
+              <Field
+                label="Email"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+                error={email && !EMAIL_RE.test(email) ? "Enter a valid email address" : null}
+              />
 
-          <button
-            type="submit"
-            disabled={!isSignupValid}
-            className={`w-full px-4 py-2 rounded text-white font-semibold ${
-              isSignupValid ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Sign Up
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleLogin}>
-          <h2 className="text-xl font-semibold mb-4">Sign In</h2>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-ink-200">
+                  Mobile number <span className="text-crimson-400">*</span>
+                </span>
+                <div className="flex">
+                  <span className="inline-flex items-center rounded-l-xl border border-r-0 border-ink-750 bg-ink-800 px-3 text-sm text-ink-400">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="9876543210"
+                    className="w-full rounded-r-xl border border-ink-750 bg-ink-900 px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-600 focus:border-brand-400/60"
+                  />
+                </div>
+                {mobile && !/^\d{10}$/.test(mobile) && (
+                  <span className="mt-1 block text-xs text-crimson-400">
+                    Enter all 10 digits
+                  </span>
+                )}
+              </label>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Login Type</label>
-            <select
-              value={identityType}
-              onChange={(e) => setIdentityType(e.target.value)}
-              className="w-full border px-3 py-2 rounded"
-            >
-              <option value="mobile">Mobile Number</option>
-              <option value="email">Email / Identity</option>
-              <option value="crn">CRN Number</option>
-            </select>
-          </div>
+              <Button type="submit" fullWidth size="lg" disabled={!signupValid}>
+                Create account
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSignin} className="space-y-4" noValidate>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-ink-200">Sign in with</span>
+                <select
+                  value={identityType}
+                  onChange={(e) => {
+                    setIdentityType(e.target.value);
+                    setIdentity("");
+                  }}
+                  className="w-full rounded-xl border border-ink-750 bg-ink-900 px-3.5 py-2.5 text-sm text-ink-100 focus:border-brand-400/60"
+                >
+                  <option value="mobile">Mobile number</option>
+                  <option value="email">Email / identity</option>
+                  <option value="crn">CRN number</option>
+                </select>
+              </label>
 
-          <input
-            type="text"
-            placeholder={placeholders[identityType]}
-            value={identity}
-            onChange={(e) => setIdentity(e.target.value)}
-            className="w-full border px-3 py-2 rounded mb-4"
-            required
-          />
-          <button type="submit" className="w-full px-4 py-2 bg-indigo-600 text-white rounded">
-            Sign In
-          </button>
-        </form>
-      )}
+              <Field
+                label="Your identity"
+                value={identity}
+                onChange={setIdentity}
+                placeholder={identityPlaceholders[identityType]}
+                required
+              />
+
+              <Button type="submit" fullWidth size="lg" disabled={!signinValid}>
+                Sign in
+              </Button>
+            </form>
+          )}
+        </div>
+      </div>
+
+      <p className="text-center text-xs leading-relaxed text-ink-600">
+        This is a demo. Any details you enter are stored in your browser and sent to CleverTap as
+        profile data — don't use real credentials.
+      </p>
     </div>
   );
 }
+

@@ -1,145 +1,137 @@
-import React, { useState } from "react";
-import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import Topbar from "./components/Topbar";
+import React, { lazy, Suspense } from "react";
+import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
+import Topbar from "./components/layout/Topbar";
+import Footer from "./components/layout/Footer";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { PageLoader } from "./components/ui/States";
+import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/auth-context";
+import { BookingProvider } from "./context/BookingContext";
 import HomePage from "./pages/HomePage";
-import MovieDetailPage from "./pages/MovieDetailPage";
-import ProfilePage from "./pages/ProfilePage";
-import LoginPage from "./pages/LoginPage";
-import { updateProfileOnClevertap } from "./utils/cleverTap";
 
-// Gate content behind an authenticated identity - unauthenticated visitors
-// are sent to /login instead of silently browsing/buying as "Guest".
-function RequireAuth({ identity, children }) {
+// Home ships in the main bundle; every other route is split out, so the first
+// paint doesn't carry the seat map, checkout or ticket code along with it.
+const BrowsePage = lazy(() => import("./pages/BrowsePage"));
+const SearchPage = lazy(() => import("./pages/SearchPage"));
+const TitleDetailPage = lazy(() => import("./pages/TitleDetailPage"));
+const ShowtimesPage = lazy(() => import("./pages/ShowtimesPage"));
+const SeatsPage = lazy(() => import("./pages/SeatsPage"));
+const PassPage = lazy(() => import("./pages/PassPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const BookingsPage = lazy(() => import("./pages/BookingsPage"));
+const TicketPage = lazy(() => import("./pages/TicketPage"));
+const WatchlistPage = lazy(() => import("./pages/WatchlistPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+
+/**
+ * Send unauthenticated visitors to sign in, remembering where they were headed
+ * so checkout resumes exactly where it left off.
+ *
+ * Browsing is deliberately open - only paying, and anything tied to a personal
+ * profile, needs an identity behind it.
+ */
+function RequireAuth({ children }) {
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
-  if (!identity) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (!isAuthenticated) {
+    return (
+      <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
+    );
   }
   return children;
 }
 
-// Bounce straight back home if a user who's already signed in lands on
-// /login directly. Whether to redirect is decided once, from the identity
-// at mount time - if we kept re-checking the live `identity` prop, this
-// would fire (and stomp the intended post-login destination) at the exact
-// moment handleLogin/handleSignup flips identity from empty to set.
-function LoginRoute({ identity, onLogin, onSignup }) {
-  const [wasAlreadyAuthed] = useState(() => Boolean(identity));
-  if (wasAlreadyAuthed) {
-    return <Navigate to="/" replace />;
+/** Redirect visitors who are already signed in away from /login. */
+function LoginRoute() {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  if (isAuthenticated) {
+    return <Navigate to={location.state?.from || "/"} replace />;
   }
-  return <LoginPage onLogin={onLogin} onSignup={onSignup} />;
+  return <LoginPage />;
 }
 
-// Old /movie/:movieId links (bookmarks, external CleverTap campaigns) keep
-// working by resolving to the unified /title/movie/:id route.
+// Bookmarks and CleverTap campaigns still point at the old /movie/:id URLs.
 function LegacyMovieRedirect() {
   const { movieId } = useParams();
   return <Navigate to={`/title/movie/${movieId}`} replace />;
 }
 
 export default function App() {
-  const [identity, setIdentity] = useState(() => localStorage.getItem("user_identity") || "");
-  const [profile, setProfile] = useState(() => {
-    const savedProfile = localStorage.getItem("user_profile");
-    return savedProfile ? JSON.parse(savedProfile) : {};
-  });
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Where to send the user once they're signed in - the page they were
-  // trying to act on (e.g. buy/wishlist a specific movie) when they were
-  // bounced to /login, or "/" if they navigated to /login directly.
-  const postLoginDestination = location.state?.from || "/";
-
-  const handleLogin = (id) => {
-    const userProfile = {
-      Name: id.split("@")[0] || "User",
-      Identity: id,
-      Email: id,
-    };
-    updateProfileOnClevertap(userProfile, true);
-
-    localStorage.setItem("user_identity", id);
-    localStorage.setItem("user_profile", JSON.stringify(userProfile));
-    setIdentity(id);
-    setProfile(userProfile);
-    navigate(postLoginDestination);
-  };
-
-  const handleSignup = ({ name, email, mobile }) => {
-    const id = email.toLowerCase().trim();
-    const userProfile = {
-      Name: name,
-      Identity: id,
-      Email: email,
-      Phone: `+91${mobile}`,
-    };
-    updateProfileOnClevertap(userProfile, true);
-
-    localStorage.setItem("user_identity", id);
-    localStorage.setItem("user_profile", JSON.stringify(userProfile));
-    setIdentity(id);
-    setProfile(userProfile);
-    navigate(postLoginDestination);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("user_identity");
-    localStorage.removeItem("user_profile");
-    setIdentity("");
-    setProfile({});
-    navigate("/login");
-  };
-
-  const handleProfileUpdate = (updatedProfile) => {
-    const payloadWithDefaults = {
-      ...updatedProfile,
-      "MSG-email": true,
-      "MSG-dndEmail": false,
-    };
-    updateProfileOnClevertap(payloadWithDefaults);
-
-    // Update the master profile state in App
-    const newProfile = { ...profile, ...updatedProfile };
-    setProfile(newProfile);
-    localStorage.setItem("user_profile", JSON.stringify(newProfile));
-
-    alert("Profile updated successfully!");
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Topbar identity={identity} />
-      <main className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <LoginRoute identity={identity} onLogin={handleLogin} onSignup={handleSignup} />
-            }
-          />
-          <Route path="/" element={<HomePage />} />
-          <Route
-            path="/title/:type/:id"
-            element={<MovieDetailPage identity={identity} profile={profile} />}
-          />
-          <Route path="/movie/:movieId" element={<LegacyMovieRedirect />} />
-          <Route
-            path="/profile"
-            element={
-              <RequireAuth identity={identity}>
-                <ProfilePage
-                  identity={identity}
-                  profile={profile}
-                  onLogout={handleLogout}
-                  onProfileUpdate={handleProfileUpdate}
-                />
-              </RequireAuth>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <AuthProvider>
+      <BookingProvider>
+        <div className="flex min-h-screen flex-col bg-ink-950">
+          <Topbar />
+
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/movies" element={<BrowsePage mediaType="movie" />} />
+                  <Route path="/series" element={<BrowsePage mediaType="tv" />} />
+                  <Route path="/search" element={<SearchPage />} />
+                  <Route path="/title/:type/:id" element={<TitleDetailPage />} />
+
+                  <Route path="/book/movie/:id/shows" element={<ShowtimesPage />} />
+                  <Route path="/book/movie/:id/seats/:showId" element={<SeatsPage />} />
+                  <Route path="/book/tv/:id/pass" element={<PassPage />} />
+
+                  <Route
+                    path="/checkout"
+                    element={
+                      <RequireAuth>
+                        <CheckoutPage />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/bookings"
+                    element={
+                      <RequireAuth>
+                        <BookingsPage />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/bookings/:bookingId"
+                    element={
+                      <RequireAuth>
+                        <TicketPage />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/watchlist"
+                    element={
+                      <RequireAuth>
+                        <WatchlistPage />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <RequireAuth>
+                        <ProfilePage />
+                      </RequireAuth>
+                    }
+                  />
+
+                  <Route path="/login" element={<LoginRoute />} />
+                  <Route path="/movie/:movieId" element={<LegacyMovieRedirect />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+
+          <Footer />
+        </div>
+      </BookingProvider>
+    </AuthProvider>
   );
 }

@@ -3,15 +3,38 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0C0C11" />
+    <meta
+      name="description"
+      content="Book cinema tickets for the latest movies and buy streaming passes for series - showtimes, seat selection and instant confirmation."
+    />
+
+    <title>Cineplex - Book movie tickets &amp; series passes</title>
+
+    <!-- The app talks to these four origins on nearly every screen; warming the
+         connections shaves a round trip off the first poster and API call. -->
+    <link rel="preconnect" href="https://api.themoviedb.org" />
+    <link rel="preconnect" href="https://image.tmdb.org" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://i.ytimg.com" />
+
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
 
-    <title>Movies Demo</title>
+    <!-- Paint the app background immediately so a dark page never flashes white
+         while the stylesheet is still in flight. -->
+    <style>
+      html,
+      body {
+        background-color: #08080b;
+        margin: 0;
+      }
+    </style>
 
+    <!-- CleverTap web SDK -->
     <script type="text/javascript">
       var clevertap = {
         event: [],
@@ -21,11 +44,11 @@
         notifications: [],
         privacy: [],
       };
-      // replace with the CLEVERTAP_ACCOUNT_ID with the actual ACCOUNT ID value from your Dashboard –> Settings page
+      // Replace with the ACCOUNT ID from your CleverTap Dashboard -> Settings.
       clevertap.account.push({ id: "R57-875-KK7Z" });
-      clevertap.privacy.push({ optOut: false }); //set the flag to true, if the user of the device opts out of sharing their data
+      clevertap.privacy.push({ optOut: false });
       clevertap.dismissSpamControl = true;
-      clevertap.privacy.push({ useIP: false }); //set the flag to true, if the user agrees to share their IP data
+      clevertap.privacy.push({ useIP: false });
       (function () {
         var wzrk = document.createElement("script");
         wzrk.type = "text/javascript";
@@ -43,58 +66,59 @@
       window.clevertap = window.clevertap || {};
       window.clevertap.notifications = window.clevertap.notifications || [];
       window.clevertap.notifications.push({
-        titleText: "Turn On Notifications?",
-        bodyText: "We will only send you relevant and useful updates.",
+        titleText: "Turn on notifications?",
+        bodyText: "Get showtime reminders and booking confirmations.",
         okButtonText: "Allow",
         rejectButtonText: "Later",
-        okButtonColor: "#0b82ff",
+        okButtonColor: "#F5B31C",
         askAgainTimeInSeconds: 30,
         serviceWorkerPath: "clevertap_sw.js",
       });
     </script>
-
-    <!-- Firebase minimal init (keeps your credentials) -->
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyB0nT_1P6AJVqEVNPDS5-dxUDPy-pR0N0Q",
-        authDomain: "react-native-c88d2.firebaseapp.com",
-        projectId: "react-native-c88d2",
-        storageBucket: "react-native-c88d2.firebasestorage.app",
-        messagingSenderId: "836702820069",
-        appId: "1:836702820069:web:8324d5a4e3c416783a660c",
-        measurementId: "G-3D5ECPENFD",
-      };
-
-      const app = initializeApp(firebaseConfig);
-      const analytics = getAnalytics(app);
-    </script>
-
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Campaign attribution: report UTM parameters once per landing. -->
     <script>
-      function getParam(name) {
-        return new URLSearchParams(window.location.search).get(name);
-      }
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var utmContent = params.get("utm_content");
+        var utmTerm = params.get("utm_term");
+        if (utmContent || utmTerm) {
+          clevertap.event.push("UTM_Visited", {
+            utm_content: utmContent,
+            utm_term: utmTerm,
+          });
+        }
+      })();
+    </script>
 
-      const utmContent = getParam("utm_content");
-      const utmTerm = getParam("utm_term");
+    <!-- Firebase analytics. Loaded last and lazily so ~150KB of SDK never
+         competes with the app bundle for the first paint. -->
+    <script type="module">
+      window.addEventListener("load", async () => {
+        const { initializeApp } = await import(
+          "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js"
+        );
+        const { getAnalytics } = await import(
+          "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js"
+        );
 
-      if (utmContent || utmTerm) {
-        clevertap.event.push("UTM_Visited", {
-          utm_content: utmContent,
-          utm_term: utmTerm
-        });
-      }
+        getAnalytics(
+          initializeApp({
+            apiKey: "AIzaSyB0nT_1P6AJVqEVNPDS5-dxUDPy-pR0N0Q",
+            authDomain: "react-native-c88d2.firebaseapp.com",
+            projectId: "react-native-c88d2",
+            storageBucket: "react-native-c88d2.firebasestorage.app",
+            messagingSenderId: "836702820069",
+            appId: "1:836702820069:web:8324d5a4e3c416783a660c",
+            measurementId: "G-3D5ECPENFD",
+          })
+        );
+      });
     </script>
   </body>
 </html>
