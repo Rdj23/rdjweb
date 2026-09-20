@@ -122,7 +122,7 @@ export const search = (mediaType, query, signal) =>
 // One request instead of three: `append_to_response` bundles credits and
 // videos into the detail payload.
 export const getTitleDetail = (mediaType, id, signal) =>
-  tmdb(`${mediaType}/${id}`, { append_to_response: "credits,videos,similar" }, { signal });
+  tmdb(`${mediaType}/${id}`, { append_to_response: "credits,videos" }, { signal });
 
 export const getSeason = (seriesId, seasonNumber, signal) =>
   tmdb(`tv/${seriesId}/season/${seasonNumber}`, {}, { signal });
@@ -135,4 +135,36 @@ export const findTrailer = (detail) => {
     videos.find((v) => v.site === "YouTube" && v.type === "Teaser") ||
     null
   );
+};
+
+/** People search, used by the favourite-director picker. */
+export const searchPerson = (query, signal) =>
+  tmdb("search/person", { query, include_adult: "false" }, { signal });
+
+/**
+ * A person's directing credits, most popular first.
+ * Series use `created_by`, whose crew job strings vary, so TV falls back to any
+ * crew credit rather than filtering on an exact job title.
+ */
+export const getPersonWorks = async (personId, mediaType, signal) => {
+  const endpoint = mediaType === "tv" ? "tv_credits" : "movie_credits";
+  const credits = await tmdb(`person/${personId}/${endpoint}`, {}, { signal });
+  const crew = credits.crew || [];
+  const directed = mediaType === "tv" ? crew : crew.filter((c) => c.job === "Director");
+  // One person can hold several crew credits on the same title; keep one row each.
+  const unique = new Map();
+  for (const work of directed) {
+    if (!unique.has(work.id)) unique.set(work.id, work);
+  }
+  return [...unique.values()].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+};
+
+/** The credited director of a movie, or the first creator of a series. */
+export const directorOf = (detail, mediaType) => {
+  if (mediaType === "tv") {
+    const creator = (detail?.created_by || [])[0];
+    return creator ? { id: creator.id, name: creator.name, profilePath: creator.profile_path } : null;
+  }
+  const director = (detail?.credits?.crew || []).find((c) => c.job === "Director");
+  return director ? { id: director.id, name: director.name, profilePath: director.profile_path } : null;
 };

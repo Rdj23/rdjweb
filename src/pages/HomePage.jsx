@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import HeroCarousel from "../components/catalog/HeroCarousel";
+import NativeSlot from "../components/catalog/NativeSlot";
 import TitleRail from "../components/catalog/TitleRail";
 import { ErrorState } from "../components/ui/States";
 import { useTmdb } from "../hooks/useTmdb";
@@ -39,16 +40,19 @@ export default function HomePage() {
 
   return (
     <div className="space-y-12">
-      {/* CleverTap in-app / native display slots. Kept empty until a campaign
-          injects into them, so they take no vertical space otherwise. */}
-      <div id="ct-custom-popup-slot" />
-      <div id="ct-native-banner-slot" />
+      {/* In-app message target. Always empty - a campaign renders into it. */}
+      <div id="ct-custom-popup-slot" data-ct-slot="ct-custom-popup-slot" />
 
-      <HeroCarousel
-        items={nowShowing.data?.results || []}
-        mediaType="movie"
-        loading={nowShowing.loading}
-      />
+      {/* The hero banner is a native display target. A recommendation campaign
+          owns this space; the carousel below is only what's shown until one is
+          live, so the slot itself stays blank for CleverTap to fill. */}
+      <NativeSlot id="ct-native-banner-slot">
+        <HeroCarousel
+          items={nowShowing.data?.results || []}
+          mediaType="movie"
+          loading={nowShowing.loading}
+        />
+      </NativeSlot>
 
       <TitleRail
         title="Now showing near you"

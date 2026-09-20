@@ -81,10 +81,49 @@ read top to bottom:
 `Charged` → `Booking Cancelled`
 
 plus `Added to Watchlist`, `Removed from Watchlist`, `Trailer Played`,
-`City Changed` and `UTM_Visited`.
+`City Changed`, `Preferences Saved` and `UTM_Visited`.
 
 `Charged` is sent with `Amount`, `Charged ID` and an `Items` array (one entry per
 seat, or one per pass), which is what CleverTap's revenue reporting expects.
+
+### User properties
+
+Set on the profile page and pushed with every save:
+
+| Property | Set from | Notes |
+| --- | --- | --- |
+| `FavGenre` | chip picker | Plain genre name |
+| `FavDirector` | searchable TMDB people lookup, free-form allowed | |
+| `FavDirectorId` | same | TMDB person id, absent for a free-form entry |
+| `FavLanguage` | searchable language list, free-form allowed | |
+| `FavLanguageCode` | same | ISO 639-1, absent for a free-form entry |
+
+Saving also fires a `Preferences Saved` event, so a campaign can react without
+waiting on a profile sync. Profile keys prefixed with `_` (a cached avatar url,
+say) are persisted locally but never pushed as CleverTap properties.
+
+## Native display slots
+
+Every slot ships **empty** — a campaign injects into it by id, outside React.
+Where a slot has a stand-in, the stand-in is rendered only while the slot is
+empty and unmounts the moment a campaign fills it, so you never see both.
+
+| Slot id | Where | Stand-in while empty |
+| --- | --- | --- |
+| `ct-custom-popup-slot` | Home, top | none |
+| `ct-native-banner-slot` | Home, hero position | Now-showing carousel |
+| `ct-reco-genre` | Title detail | Discover by genre |
+| `ct-reco-language` | Title detail | Discover by original language |
+| `ct-reco-director` | Title detail | That director's other work |
+
+The three `ct-reco-*` rails sit under one "Recommended by CleverTap for you"
+heading, each subtitled with the basis it is personalised on. The basis prefers
+the viewer's saved preference and falls back to the title's own attribute — a
+signed-in user with a favourite director sees *"based on your favourite
+director, Christopher Nolan"*, everyone else sees *"based on Denis Villeneuve"*.
+Series use `created_by` and are labelled *Creator* rather than *Director*.
+
+`useSlotFilled` (a `MutationObserver` on the slot) is what drives the handover.
 
 ### Date properties
 
