@@ -53,8 +53,15 @@ export function AuthProvider({ children }) {
   const updateProfile = useCallback(
     (changes) => {
       const next = { ...profile, ...changes };
+
+      // Keys prefixed with "_" are local UI state (a cached avatar url, say) -
+      // persisted with the profile but never pushed as CleverTap properties.
+      const pushable = Object.fromEntries(
+        Object.entries(changes).filter(([key]) => !key.startsWith("_"))
+      );
+
       // Marketing-channel opt-ins ride along with every explicit profile save.
-      updateProfileOnClevertap({ ...changes, "MSG-email": true, "MSG-dndEmail": false });
+      updateProfileOnClevertap({ ...pushable, "MSG-email": true, "MSG-dndEmail": false });
       writeJSON(STORAGE_KEYS.profile, next);
       setProfile(next);
     },

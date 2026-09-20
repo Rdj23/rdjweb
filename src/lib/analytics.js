@@ -124,6 +124,16 @@ export const trackWatchlistRemoved = track("trackWatchlistRemoved", (item, media
   pushProfileCommand({ Site: { watchlist: { $remove: titleOf(item) } } });
 });
 
+export const trackPreferencesSaved = track("trackPreferencesSaved", (profile) =>
+  addEventToCleverTap("Preferences Saved", {
+    "Favourite Genre": profile.FavGenre || undefined,
+    "Favourite Director": profile.FavDirector || undefined,
+    "Favourite Director ID": profile.FavDirectorId || undefined,
+    "Favourite Language": profile.FavLanguage || undefined,
+    "Favourite Language Code": profile.FavLanguageCode || undefined,
+  })
+);
+
 export const trackCityChanged = track("trackCityChanged", (city) =>
   addEventToCleverTap("City Changed", { City: city })
 );

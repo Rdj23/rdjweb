@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import TrailerPlayer from "../components/catalog/TrailerPlayer";
-import TitleCard from "../components/catalog/TitleCard";
+import RecommendationSections from "../components/catalog/RecommendationSections";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { DetailSkeleton } from "../components/ui/Skeleton";
@@ -89,7 +89,6 @@ export default function TitleDetailPage() {
   const genres = genreNames(item);
   const trailer = findTrailer(item);
   const cast = (item.credits?.cast || []).slice(0, 12);
-  const similar = (item.similar?.results || []).slice(0, 12);
   const director = (item.credits?.crew || []).find((c) => c.job === "Director");
 
   return (
@@ -228,16 +227,7 @@ export default function TitleDetailPage() {
         </section>
       )}
 
-      {similar.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold text-white sm:text-2xl">More like this</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-            {similar.map((s) => (
-              <TitleCard key={s.id} item={s} mediaType={mediaType} />
-            ))}
-          </div>
-        </section>
-      )}
+      <RecommendationSections item={item} mediaType={mediaType} />
 
       <p className="text-xs text-ink-600">
         Looking for something else?{" "}
